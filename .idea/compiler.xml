@@ -20,4 +20,26 @@
       <module name="msa-user-service" target="17" />
     </bytecodeTargetLevel>
   </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="checkmate_backend.community-service" options="-parameters" />
+      <module name="checkmate_backend.community-service.main" options="-parameters" />
+      <module name="checkmate_backend.community-service.test" options="-parameters" />
+      <module name="checkmate_backend.eureka-service" options="-parameters" />
+      <module name="checkmate_backend.eureka-service.main" options="-parameters" />
+      <module name="checkmate_backend.eureka-service.test" options="-parameters" />
+      <module name="checkmate_backend.gateway-service" options="-parameters" />
+      <module name="checkmate_backend.gateway-service.main" options="-parameters" />
+      <module name="checkmate_backend.gateway-service.test" options="-parameters" />
+      <module name="checkmate_backend.store-service" options="-parameters" />
+      <module name="checkmate_backend.store-service.main" options="-parameters" />
+      <module name="checkmate_backend.store-service.test" options="-parameters" />
+      <module name="checkmate_backend.study-service" options="-parameters" />
+      <module name="checkmate_backend.study-service.main" options="-parameters" />
+      <module name="checkmate_backend.study-service.test" options="-parameters" />
+      <module name="checkmate_backend.user-service" options="-parameters" />
+      <module name="checkmate_backend.user-service.main" options="-parameters" />
+      <module name="checkmate_backend.user-service.test" options="-parameters" />
+    </option>
+  </component>
 </project>
