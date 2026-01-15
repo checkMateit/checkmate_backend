@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven { url = "https://repo.spring.io/release" }
+    }
+}
+
+dependencyResolutionManagement {
+    // 모듈 build.gradle에 repositories 금지 (이 설정으로 이전 에러 방지)
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+        maven { url = "https://repo.spring.io/release" }
+    }
+}
+
+rootProject.name = 'checkmate_backend'
+
+include 'user-service'
+include 'eureka-service'
+include 'gateway-service'
+include 'study-service'
+include 'store-service'
+include 'community-service'
+
