@@ -17,10 +17,10 @@ dependencyResolutionManagement {
 
 rootProject.name = 'checkmate_backend'
 
-include 'msa-user-service'
-include 'msa-eureka'
-include 'msa-gateway'
-include 'msa-study-service'
-include 'msa-store-service'
-include 'msa-community-service'
+include 'user-service'
+include 'eureka-service'
+include 'gateway-service'
+include 'study-service'
+include 'store-service'
+include 'community-service'
 
