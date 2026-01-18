@@ -12,6 +12,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="17">
+      <module name="checkmate" target="17" />
       <module name="checkmate.main" target="17" />
       <module name="checkmate.msa-user-service" target="17" />
       <module name="checkmate.msa-user-service.main" target="17" />
