@@ -1,4 +1,4 @@
-package com.checkit.userservice.user.entity;
+package com.checkit.userservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

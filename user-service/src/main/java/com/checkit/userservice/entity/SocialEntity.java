@@ -1,6 +1,5 @@
-package com.checkit.userservice.social.entity;
+package com.checkit.userservice.entity;
 
-import com.checkit.userservice.user.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,7 +10,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "social_account")
-public class socialEntity {
+public class SocialEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -34,7 +33,7 @@ public class socialEntity {
     private LocalDateTime connectedAt;
 
     @Builder
-    public socialEntity(UserEntity user, String provider, String providerUserId, String email) {
+    public SocialEntity(UserEntity user, String provider, String providerUserId, String email) {
         this.user = user;
         this.provider = provider;
         this.providerUserId = providerUserId;
