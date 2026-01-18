@@ -5,7 +5,11 @@ spring:
   application:
     name: user-service
   profiles:
-    include: oauth
+    include: secret
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
 
 eureka:
