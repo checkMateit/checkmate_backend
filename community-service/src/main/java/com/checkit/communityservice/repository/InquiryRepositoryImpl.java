@@ -1,4 +1,10 @@
 package com.checkit.communityservice.repository;
 
-public class InquiryRepositoryImpl {
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
+public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
+    private final JPAQueryFactory queryFactory;
+
 }
