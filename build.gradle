@@ -9,7 +9,7 @@ ext {
 }
 
 subprojects {
-	group = "com.goormone"
+	group = "com.checkmate"
 	version = "0.0.1-SNAPSHOT"
 
 	apply plugin: "java"
