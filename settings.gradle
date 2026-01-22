@@ -23,4 +23,5 @@ include 'gateway-service'
 include 'study-service'
 include 'store-service'
 include 'community-service'
+include 'common-service'
 
