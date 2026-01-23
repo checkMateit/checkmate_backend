@@ -305,7 +305,7 @@ CREATE TABLE group_verification_methods (
   CONSTRAINT pk_group_verification_methods PRIMARY KEY (method_id)
 );
 
--- Column comments
+-- Column commednts
 COMMENT ON COLUMN inquiry_comment.author_type IS 'ADMIN, USER';
 COMMENT ON COLUMN group_exemption.group_id IS '고유 스터디 ID';
 COMMENT ON COLUMN group_exemption.limit_unit IS 'WEEK / MONTH / TOTAL';

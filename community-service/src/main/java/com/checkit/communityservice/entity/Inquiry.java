@@ -4,7 +4,8 @@ package com.checkit.communityservice.entity;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import jakarta.persistence.*;
 import lombok.*;
-
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -30,6 +31,10 @@ public class Inquiry {
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
+
+//    @CreationTimestamp
+//    @Column(name = "created_at", nullable = false, updatable = false)
+//    private LocalDateTime createdAt;
 
     @Builder
     private Inquiry(UUID userId, String title, String content, String status) {
