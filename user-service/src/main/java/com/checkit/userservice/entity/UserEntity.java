@@ -1,5 +1,6 @@
 package com.checkit.userservice.entity;
 
+import com.checkit.common.entity.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,7 +14,7 @@ import java.util.UUID;
 public class UserEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "user_id", columnDefinition = "UUID")
     private UUID userId;
 
@@ -26,7 +27,10 @@ public class UserEntity {
     @Column(unique = true)
     private String nickname;
 
+    @Column(name = "gender")
     private String gender;
+
+    @Column(name = "birthdate")
     private LocalDate birthdate;
 
     @Column(name = "phone_number")
@@ -38,12 +42,17 @@ public class UserEntity {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role = UserRole.USER;
+
     @Builder
     public UserEntity(String email, String name, String nickname, String profileImageUrl) {
         this.email = email;
         this.name = name;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
+        this.role = (role != null) ? role : UserRole.USER;
         this.isActive = true;
     }
 }

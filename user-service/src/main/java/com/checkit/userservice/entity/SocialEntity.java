@@ -9,7 +9,10 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "social_account")
+@Table(name = "social_account",
+        uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"provider", "provider_user_id"})
+})
 public class SocialEntity {
 
     @Id
