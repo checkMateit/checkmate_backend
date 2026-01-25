@@ -1,8 +1,10 @@
 package com.checkit.communityservice.controller;
 
 import com.checkit.common.dto.ApiResponse;
+import com.checkit.communityservice.dto.NoticeCreateReq;
 import com.checkit.communityservice.dto.NoticeDetailRes;
 import com.checkit.communityservice.dto.NoticeListRes;
+import com.checkit.communityservice.dto.NoticeUpdateReq;
 import com.checkit.communityservice.repository.NoticeRepository;
 import com.checkit.communityservice.service.NoticeService;
 import lombok.RequiredArgsConstructor;
@@ -30,4 +32,32 @@ public class NoticeController {
         return ApiResponse.success(noticeService.getNoticeDetail(noticeId));
     }
 
+    // 공지 등록
+    @PostMapping
+// @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<NoticeDetailRes> createNotice(
+            @RequestBody NoticeCreateReq req
+    ) {
+        return ApiResponse.success(noticeService.createNotice(req));
+    }
+
+    //공지 수정
+    @PatchMapping("/{notice_id}")
+// @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<NoticeDetailRes> updateNotice(
+            @PathVariable("notice_id") long noticeId,
+            @RequestBody NoticeUpdateReq req
+    ) {
+        return ApiResponse.success(noticeService.updateNotice(noticeId, req));
+    }
+
+    // 공지 삭제
+    @DeleteMapping("/{notice_id}")
+// @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> deleteNotice(
+            @PathVariable("notice_id") long noticeId
+    ) {
+        noticeService.deleteNotice(noticeId);
+        return ApiResponse.success();
+    }
 }

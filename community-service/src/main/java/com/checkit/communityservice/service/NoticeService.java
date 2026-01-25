@@ -2,8 +2,10 @@ package com.checkit.communityservice.service;
 
 import com.checkit.common.exception.BusinessException;
 import com.checkit.common.exception.CommonCode;
+import com.checkit.communityservice.dto.NoticeCreateReq;
 import com.checkit.communityservice.dto.NoticeDetailRes;
 import com.checkit.communityservice.dto.NoticeListRes;
+import com.checkit.communityservice.dto.NoticeUpdateReq;
 import com.checkit.communityservice.entity.Notice;
 import com.checkit.communityservice.repository.NoticeRepository;
 import jakarta.transaction.Transactional;
@@ -37,5 +39,40 @@ public class NoticeService {
                 .orElseThrow(() -> new BusinessException(CommonCode.NOTICE_NOT_FOUND));
 
         return NoticeDetailRes.of(notice);
+    }
+    //공지사항 등록하기
+    public NoticeDetailRes createNotice(NoticeCreateReq req) {
+        Notice notice = Notice.builder()
+                .title(req.getTitle())
+                .content(req.getContent())
+                .viewCount(0)
+                .build();
+
+        Notice saved = noticeRepository.save(notice);
+        return NoticeDetailRes.of(saved);
+    }
+
+    // 공지사항 수정하기
+    public NoticeDetailRes updateNotice(long noticeId, NoticeUpdateReq req) {
+
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOTICE_NOT_FOUND));
+
+        if (req.getTitle() != null) {
+            notice.setTitle(req.getTitle());
+        }
+        if (req.getContent() != null) {
+            notice.setContent(req.getContent());
+        }
+
+        return NoticeDetailRes.of(notice);
+    }
+
+    // 공지사항 삭제하기
+    public void deleteNotice(long noticeId) {
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOTICE_NOT_FOUND));
+
+        noticeRepository.delete(notice);
     }
 }
