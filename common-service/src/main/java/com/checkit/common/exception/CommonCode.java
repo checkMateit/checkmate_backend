@@ -27,7 +27,10 @@ public enum CommonCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 5000, "서버 오류"),
 
     // 문의 오류
-    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, 4200, "문의가 존재하지 않습니다.");
+    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, 4200, "문의가 존재하지 않습니다."),
+
+    // 공지사항 오류
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, 4300, "공지사항이 존재하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final int code;

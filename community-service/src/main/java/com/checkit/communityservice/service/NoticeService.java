@@ -1,5 +1,8 @@
 package com.checkit.communityservice.service;
 
+import com.checkit.common.exception.BusinessException;
+import com.checkit.common.exception.CommonCode;
+import com.checkit.communityservice.dto.NoticeDetailRes;
 import com.checkit.communityservice.dto.NoticeListRes;
 import com.checkit.communityservice.entity.Notice;
 import com.checkit.communityservice.repository.NoticeRepository;
@@ -27,5 +30,12 @@ public class NoticeService {
         Page<Notice> noticePage = noticeRepository.findAll(pageable);
 
         return NoticeListRes.from(noticePage);
+    }
+    // 공지사항 상세보기
+    public NoticeDetailRes getNoticeDetail(long noticeId) {
+        Notice notice = noticeRepository.findByNoticeId(noticeId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOTICE_NOT_FOUND));
+
+        return NoticeDetailRes.of(notice);
     }
 }
