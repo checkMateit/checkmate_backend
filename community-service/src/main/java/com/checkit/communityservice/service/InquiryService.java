@@ -32,7 +32,7 @@ public class InquiryService {
         );
         Page<Inquiry> result = inquiryRepository.findByUserId(userId, pageable);
 
-        log.info("getMyInquiries - Found {} inquiries for userId: {}", result.getTotalElements(), userId);
+
         result.getContent().forEach(inquiry -> log.info(" -> Inquiry ID: {}", inquiry.getInquiryId()));
 
         return InquiryListRes.from(result);

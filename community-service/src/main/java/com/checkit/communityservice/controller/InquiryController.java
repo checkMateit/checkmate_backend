@@ -25,8 +25,8 @@ public class InquiryController {
 
     @GetMapping("/me")
     public ApiResponse<InquiryListRes> getMyInquiries(
-            @RequestParam int page,
-            @RequestParam int size
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
         // TODO : 나중에 UUID 바꾸기
         UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");

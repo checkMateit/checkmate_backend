@@ -24,6 +24,7 @@ public record InquiryDetailRes(
 //        @JsonProperty("created_at") LocalDateTime createdAt,
         List<InquiryCommentRes> comments
 ) {
+    // TODO : 나중에 createdAt 기준으로 ASC 해야함 .
     public static InquiryDetailRes of(Inquiry inquiry, List<InquiryCommentRes> comments) {
         return InquiryDetailRes.builder()
                 .inquiryId(inquiry.getInquiryId())

@@ -29,8 +29,8 @@ public class Notice {
     private Integer viewCount;
 
 
-    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
-    private LocalDateTime createdAt;
+//    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+//    private LocalDateTime createdAt;
 
     @Builder
     private Notice(String title, String content, Integer viewCount) {
