@@ -1,5 +1,6 @@
 package com.checkit.communityservice.dto;
 
+import com.checkit.communityservice.entity.Inquiry;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
@@ -15,4 +16,14 @@ public record InquiryDetailRes(
 //        @JsonProperty("created_at") LocalDateTime createdAt,
         List<InquiryCommentRes> comments
 ) {
+    public static InquiryDetailRes of(Inquiry inquiry, List<InquiryCommentRes> comments) {
+        return InquiryDetailRes.builder()
+                .inquiryId(inquiry.getInquiryId())
+                .title(inquiry.getTitle())
+                .content(inquiry.getContent())
+                .status(inquiry.getStatus())
+//                .createdAt(inquiry.getCreatedAt())
+                .comments(comments)
+                .build();
+    }
 }

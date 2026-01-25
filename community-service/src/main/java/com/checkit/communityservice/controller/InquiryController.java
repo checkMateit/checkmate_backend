@@ -1,6 +1,7 @@
 package com.checkit.communityservice.controller;
 
 import com.checkit.common.dto.ApiResponse;
+import com.checkit.communityservice.dto.InquiryDetailRes;
 import com.checkit.communityservice.dto.InquiryListItemRes;
 import com.checkit.communityservice.dto.InquiryListRes;
 import com.checkit.communityservice.service.InquiryService;
@@ -28,8 +29,19 @@ public class InquiryController {
             @RequestParam int size
     ) {
         // TODO : 나중에 UUID 바꾸기
-        UUID dummyUserId = UUID.fromString("aa9a6b10-2e92-5b22-b8c8-86e6a3f1c481");
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
         return ApiResponse.success(inquiryService.getMyInquiries(dummyUserId, page, size));
     }
+
+    @GetMapping("/{inquiryId}")
+    public ApiResponse<InquiryDetailRes> getInquiryDetail(@PathVariable Long inquiryId) {
+
+        // TODO: JWT 붙이면 여기서 userId 꺼내기
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+
+        return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, dummyUserId));
+    }
+
+
     }
 

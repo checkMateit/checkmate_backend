@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface InquiryRepository extends JpaRepository<Inquiry, Integer> {
+public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
 
     //내 문의 목록 조회
     Page<Inquiry> findByUserId(UUID userId, Pageable pageable);
