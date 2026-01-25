@@ -1,1 +1,36 @@
-spring.application.name=checkmate
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+
+  main:
+    web-application-type: REACTIVE
+
+  profiles:
+    include:
+      - secret
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: user-service-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/login/**, /api/v1/users/signup/**,
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - name: JwtAuthenticationFilter
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+

@@ -1,5 +1,6 @@
 package com.checkit.userservice.config;
 
+import com.checkit.userservice.security.OAuth2SuccessHandler;
 import com.checkit.userservice.service.OAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -18,10 +19,12 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final OAuth2UserService oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
-    public SecurityConfig(OAuth2UserService oAuth2UserService) {
+    public SecurityConfig(OAuth2UserService oAuth2UserService, OAuth2SuccessHandler oAuth2SuccessHandler) {
+
         this.oAuth2UserService = oAuth2UserService;
-        System.out.println(">>>> [DEBUG] SecurityConfig 로드 성공! <<<<");
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     }
 
     @Bean
@@ -31,12 +34,11 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login/**", "/oauth2/**", "/error").permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
 
                 .oauth2Login(oauth2 -> oauth2
@@ -55,7 +57,7 @@ public class SecurityConfig {
                                     );
                                 })
                         )
-                        .defaultSuccessUrl("/", true)
+                        .successHandler(oAuth2SuccessHandler)
                 );
 
         return http.build();
