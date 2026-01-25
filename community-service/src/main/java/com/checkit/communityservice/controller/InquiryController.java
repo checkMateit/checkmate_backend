@@ -28,7 +28,7 @@ public class InquiryController {
             @RequestParam int size
     ) {
         // TODO : 나중에 UUID 바꾸기
-        UUID dummyUserId = UUID.fromString("user111111");
+        UUID dummyUserId = UUID.fromString("aa9a6b10-2e92-5b22-b8c8-86e6a3f1c481");
         return ApiResponse.success(inquiryService.getMyInquiries(dummyUserId, page, size));
     }
     }
