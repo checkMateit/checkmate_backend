@@ -38,6 +38,7 @@ public class InquiryController {
 
         // TODO: JWT 붙이면 여기서 userId 꺼내기
         UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        System.out.println("### CONTROLLER HIT /inquiries/" + inquiryId);
 
         return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, dummyUserId));
     }

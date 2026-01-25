@@ -3,6 +3,7 @@ package com.checkit.communityservice.repository;
 import com.checkit.communityservice.entity.InquiryComment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface InquiryCommentRepository extends JpaRepository<InquiryComment, Long> {
@@ -10,6 +11,6 @@ public interface InquiryCommentRepository extends JpaRepository<InquiryComment, 
     //댓글 수정
     Optional<InquiryComment> findByCommentIdAndInquiryId(Long commentId, Long inquiryId);
 
-    Optional<InquiryComment> findByInquiryId(Long inquiryId);
+    List<InquiryComment> findByInquiryId(Long inquiryId);
 
 }

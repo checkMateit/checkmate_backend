@@ -38,6 +38,7 @@ public class InquiryService {
         return InquiryListRes.from(result);
     }
 
+    // 문의글 상세보기
     public InquiryDetailRes getInquiryDetail(Long inquiryId, UUID userId) {
 
         log.info("getInquiryDetail - Attempting to find inquiry with inquiryId: {} and userId: {}", inquiryId, userId);

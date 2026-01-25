@@ -2,11 +2,19 @@ package com.checkit.communityservice.dto;
 
 import com.checkit.communityservice.entity.Inquiry;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@JsonPropertyOrder({
+        "inquiry_id",
+        "title",
+        "content",
+        "status",
+        "comments"
+})
 @Builder
 public record InquiryDetailRes(
         @JsonProperty("inquiry_id") Long inquiryId,
