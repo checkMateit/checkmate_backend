@@ -18,6 +18,7 @@ public class InquiryCommentController {
     @PostMapping("/{inquiryId}/comments")
     public ApiResponse<InquiryCommentRes> saveInquiryComment(
             @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role,
             @PathVariable Long inquiryId,
             @RequestBody InquiryCommentReq req
     ) {
@@ -25,7 +26,7 @@ public class InquiryCommentController {
         InquiryCommentRes res = inquiryCommentService.addComment(
                 inquiryId,
                 userUuid,
-                req.getAuthorType(),
+                role,
                 req.getContent()
         );
 

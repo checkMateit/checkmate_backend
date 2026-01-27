@@ -33,56 +33,62 @@ public class InquiryCommentService {
     }
 
     //댓글 달기
-    public InquiryCommentRes addComment(Long inquiryId, UUID userId, String authorType, String content) {
+    public InquiryCommentRes addComment(
+            Long inquiryId,
+            UUID userId,
+            String role,
+            String content
+    ) {
         Inquiry inquiry = getInquiryOrThrow(inquiryId);
+
+        boolean isAdmin = "ADMIN".equals(role);
+
         InquiryComment comment = InquiryComment.builder()
                 .inquiryId(inquiryId)
                 .userId(userId)
-                .authorType(authorType)
+                .authorType(isAdmin ? "ADMIN" : "USER")
                 .content(content)
                 .build();
 
         inquiryCommentRepository.save(comment);
-        if ("ADMIN".equals(authorType)) {
-            inquiry.changeStatus("ANSWERED");
-        } else {
-            inquiry.changeStatus("PENDING");
-        }
+
+        inquiry.changeStatus(isAdmin ? "ANSWERED" : "PENDING");
 
         return InquiryCommentRes.from(comment);
-
     }
 
     //댓글 수정하기
-    public InquiryCommentRes updateComment(Long inquiryId, Long commentId, UUID userId, String authorType, String content) {
-        // 문의 존재 확인
-        Inquiry inquiry = getInquiryOrThrow(inquiryId);
+    public InquiryCommentRes updateComment(
+            Long inquiryId,
+            Long commentId,
+            UUID userId,
+            String role,
+            String content
+    ) {
         InquiryComment comment = getCommentOrThrow(commentId, inquiryId);
 
+        boolean isAdmin = "ADMIN".equals(role);
 
-        if ("USER".equals(authorType) && !comment.getUserId().equals(userId)) {
+        if (!isAdmin && !comment.getUserId().equals(userId)) {
             throw new BusinessException(CommonCode.FORBIDDEN);
         }
 
-
         comment.setContent(content);
-        inquiryCommentRepository.save(comment);
-
-        if ("ADMIN".equals(authorType)) {
-            inquiry.changeStatus("ANSWERED");
-        } else {
-            inquiry.changeStatus("PENDING");
-        }
         return InquiryCommentRes.from(comment);
     }
 
     //댓글 삭제하기
-    public void deleteComment(Long inquiryId, Long commentId, UUID userId, String authorType) {
-        Inquiry inquiry = getInquiryOrThrow(inquiryId);
+    public void deleteComment(
+            Long inquiryId,
+            Long commentId,
+            UUID userId,
+            String role
+    ) {
         InquiryComment comment = getCommentOrThrow(commentId, inquiryId);
 
-        // USER는 본인 댓글만 삭제 가능
-        if ("USER".equals(authorType) && !comment.getUserId().equals(userId)) {
+        boolean isAdmin = "ADMIN".equals(role);
+
+        if (!isAdmin && !comment.getUserId().equals(userId)) {
             throw new BusinessException(CommonCode.FORBIDDEN);
         }
 

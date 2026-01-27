@@ -1,6 +1,8 @@
 package com.checkit.communityservice.inquiry.controller;
 
 import com.checkit.common.dto.ApiResponse;
+import com.checkit.common.exception.BusinessException;
+import com.checkit.common.exception.CommonCode;
 import com.checkit.communityservice.inquiry.dto.InquiryDetailRes;
 import com.checkit.communityservice.inquiry.dto.InquiryListRes;
 import com.checkit.communityservice.inquiry.dto.InquiryReq;
@@ -36,7 +38,7 @@ public class InquiryController {
 
         // TODO: JWT 붙이면 여기서 userId 꺼내기
         UUID userUuid = UUID.fromString(userId);
-        System.out.println("### CONTROLLER HIT /inquiries/" + inquiryId);
+
 
         return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, userUuid));
     }
@@ -79,11 +81,15 @@ public class InquiryController {
 
     @GetMapping
     public ApiResponse<InquiryListRes> getInquiries(
+            @RequestHeader("X-User-Role") String role,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status
-    ){
-        return  ApiResponse.success(inquiryService.getInquiries(page, size, status));
+    ) {
+        if (!"ADMIN".equals(role)) {
+            throw new BusinessException(CommonCode.FORBIDDEN);
+        }
+        return ApiResponse.success(inquiryService.getInquiries(page, size, status));
     }
 }
 
