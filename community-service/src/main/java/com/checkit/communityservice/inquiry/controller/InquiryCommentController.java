@@ -31,4 +31,23 @@ public class InquiryCommentController {
 
         return ApiResponse.success(res);
     }
+    @PatchMapping("/{inquiryId}/comments/{commentId}")
+    public ApiResponse<InquiryCommentRes> updateComment(
+            @PathVariable Long inquiryId,
+            @PathVariable Long commentId,
+            @RequestBody InquiryCommentReq req
+
+    ){
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+
+        InquiryCommentRes res = inquiryCommentService.updateComment(
+                inquiryId,
+                commentId,
+                dummyUserId,
+                req.getAuthorType(),
+                req.getContent());
+
+        return ApiResponse.success(res);
+
+    }
 }

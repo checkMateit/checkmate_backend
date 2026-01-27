@@ -60,6 +60,7 @@ public class InquiryController {
         return ApiResponse.success(res);
     }
 
+
     @DeleteMapping("/{inquiryId}")
     public ApiResponse<InquiryDetailRes> deleteInquiry(
             @PathVariable Long inquiryId

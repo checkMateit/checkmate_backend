@@ -28,7 +28,7 @@ public enum CommonCode {
 
     // 문의 오류
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, 4200, "문의가 존재하지 않습니다."),
-
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 4201, "댓글이 존재하지 않습니다."),
     // 공지사항 오류
     NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, 4300, "공지사항이 존재하지 않습니다.");
 
