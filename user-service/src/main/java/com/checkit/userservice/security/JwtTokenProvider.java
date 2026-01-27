@@ -19,13 +19,16 @@ public class JwtTokenProvider {
 
     private final String secretKey;
     private final long accessTokenValidity;
+    private final long refreshTokenValidity;
     private SecretKey key;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secretKey,
-            @Value("${jwt.access-token-expiration}") long accessTokenValidity){
+            @Value("${jwt.access-token-expiration}") long accessTokenValidity,
+            @Value("${jwt.refresh-token-expiration:604800000}") long refreshTokenValidity){
         this.secretKey = secretKey;
         this.accessTokenValidity = accessTokenValidity;
+        this.refreshTokenValidity = refreshTokenValidity;
     }
 
     @PostConstruct
@@ -44,6 +47,23 @@ public class JwtTokenProvider {
                 .expiration(validity)
                 .signWith(key)
                 .compact();
+    }
+
+    public String createRefreshToken(UUID userId, UserRole role) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + refreshTokenValidity);
+
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("role", role.name())
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(key)
+                .compact();
+    }
+
+    public long getRefreshTokenValidity(){
+        return refreshTokenValidity;
     }
 
     public UUID getUserId(String token){
