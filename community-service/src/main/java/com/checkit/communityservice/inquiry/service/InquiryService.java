@@ -5,6 +5,7 @@ import com.checkit.common.exception.CommonCode;
 import com.checkit.communityservice.inquiry.dto.InquiryCommentRes;
 import com.checkit.communityservice.inquiry.dto.InquiryDetailRes;
 import com.checkit.communityservice.inquiry.dto.InquiryListRes;
+import com.checkit.communityservice.inquiry.dto.InquiryReq;
 import com.checkit.communityservice.inquiry.entity.Inquiry;
 import com.checkit.communityservice.inquiry.repository.InquiryCommentRepository;
 import com.checkit.communityservice.inquiry.repository.InquiryRepository;
@@ -56,6 +57,23 @@ public class InquiryService {
 
         return InquiryDetailRes.of(inquiry, comments);
     }
+    // 문의글 등록하기
+    public InquiryDetailRes createInquiry(InquiryReq req, UUID userId) {
+        Inquiry inquiry = Inquiry.builder()
+                .title(req.getTitle())
+                .content(req.getContent())
+                .status("PENDING")
+                .userId(userId)
+                .build();
+
+        Inquiry save = inquiryRepository.save(inquiry);
+        return InquiryDetailRes.of(save, List.of());
+    }
+
+
+//    public InquiryDetailRes updateInquiry(InquiryReq req, UUID userId) {
+//        Inquiry inquiry = inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
+//    }
 
 
 }

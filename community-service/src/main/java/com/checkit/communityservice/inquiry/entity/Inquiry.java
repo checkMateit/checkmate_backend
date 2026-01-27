@@ -29,6 +29,7 @@ public class Inquiry {
     @Column(name = "content", nullable = false, columnDefinition = "text")
     private String content;
 
+
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 

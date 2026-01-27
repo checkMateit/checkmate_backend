@@ -3,6 +3,7 @@ package com.checkit.communityservice.inquiry.controller;
 import com.checkit.common.dto.ApiResponse;
 import com.checkit.communityservice.inquiry.dto.InquiryDetailRes;
 import com.checkit.communityservice.inquiry.dto.InquiryListRes;
+import com.checkit.communityservice.inquiry.dto.InquiryReq;
 import com.checkit.communityservice.inquiry.service.InquiryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -36,8 +37,15 @@ public class InquiryController {
 
         return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, dummyUserId));
     }
+    @PostMapping
+    public ApiResponse<InquiryDetailRes> createInquiry(
+            @RequestBody InquiryReq req
+    ) {
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
 
-
+        InquiryDetailRes res = inquiryService.createInquiry(req, dummyUserId);
+        return ApiResponse.success(res);
+    }
 
     }
 
