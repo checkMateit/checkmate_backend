@@ -43,3 +43,5 @@ postgres-data/
 
 # generated files
 **/src/main/generated/docker-compose.yml
+
+src/main/resources/application-secret.yml
