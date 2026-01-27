@@ -50,4 +50,24 @@ public class InquiryCommentController {
         return ApiResponse.success(res);
 
     }
+
+    @DeleteMapping("/{inquiryId}/comments/{commentId}")
+    public ApiResponse<Void> deleteComment(
+            @PathVariable Long inquiryId,
+            @PathVariable Long commentId
+
+    ) {
+        // TODO: 나중에 JWT에서 꺼내기
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        String authorType = "USER"; // or "ADMIN"
+
+        inquiryCommentService.deleteComment(
+                inquiryId,
+                commentId,
+                dummyUserId,
+                authorType
+        );
+
+        return ApiResponse.success();
+    }
 }
