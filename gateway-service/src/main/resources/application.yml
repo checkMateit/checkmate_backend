@@ -16,16 +16,17 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
+          enabled: false
       routes:
         - id: user-service-public
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/v1/users/login/**, /api/v1/users/signup/**,
+            - Path=/users/login/**, /users/signup/**
+
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/v1/users/**
+            - Path=/users/**
           filters:
             - name: JwtAuthenticationFilter
 
@@ -34,3 +35,7 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
+logging:
+  level:
+    org.springframework.cloud.gateway: trace
+    com.checkit.gatewayservice: debug
