@@ -59,5 +59,16 @@ public class InquiryController {
 
         return ApiResponse.success(res);
     }
+
+    @DeleteMapping("/{inquiryId}")
+    public ApiResponse<InquiryDetailRes> deleteInquiry(
+            @PathVariable Long inquiryId
+    ){
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        inquiryService.deleteInquiry(inquiryId, dummyUserId);
+        return ApiResponse.success();
+
     }
+
+}
 

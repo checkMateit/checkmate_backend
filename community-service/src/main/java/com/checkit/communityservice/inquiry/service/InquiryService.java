@@ -82,5 +82,14 @@ public class InquiryService {
         return InquiryDetailRes.of(inquiry, List.of());
     }
 
+    //문의글 삭제하기
+    public void deleteInquiry(Long inquiryId, UUID userId) {
+        Inquiry inquiry= inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
+                .orElseThrow(() -> new BusinessException(CommonCode.INQUIRY_NOT_FOUND));
+
+        inquiryRepository.delete(inquiry);
+    }
+
+
 
 }
