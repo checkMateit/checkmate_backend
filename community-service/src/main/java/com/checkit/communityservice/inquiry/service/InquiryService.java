@@ -71,9 +71,16 @@ public class InquiryService {
     }
 
 
-//    public InquiryDetailRes updateInquiry(InquiryReq req, UUID userId) {
-//        Inquiry inquiry = inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
-//    }
+    //문의글 수정하기
+    public InquiryDetailRes updateInquiry(Long inquiryId, InquiryReq req, UUID userId) {
+        Inquiry inquiry = inquiryRepository
+                .findByInquiryIdAndUserId(inquiryId, userId)
+                .orElseThrow(() -> new BusinessException(CommonCode.INQUIRY_NOT_FOUND));
+
+        inquiry.update(req.getTitle(), req.getContent());
+
+        return InquiryDetailRes.of(inquiry, List.of());
+    }
 
 
 }

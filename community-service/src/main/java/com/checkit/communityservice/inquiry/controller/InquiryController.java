@@ -47,5 +47,17 @@ public class InquiryController {
         return ApiResponse.success(res);
     }
 
+    @PatchMapping("/{inquiryId}")
+    public ApiResponse<InquiryDetailRes> updateInquiry(
+            @PathVariable Long inquiryId,
+            @RequestBody InquiryReq req
+    ){
+        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+
+        InquiryDetailRes res =
+                inquiryService.updateInquiry(inquiryId, req, dummyUserId);
+
+        return ApiResponse.success(res);
+    }
     }
 
