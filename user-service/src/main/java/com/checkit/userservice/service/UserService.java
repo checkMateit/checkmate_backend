@@ -1,5 +1,6 @@
 package com.checkit.userservice.service;
 
+import com.checkit.common.entity.UserRole;
 import com.checkit.userservice.dto.SocialLoginRequest;
 import com.checkit.userservice.dto.TokenResponse;
 import com.checkit.userservice.dto.UserResponse;
@@ -11,8 +12,11 @@ import com.checkit.userservice.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.time.Duration;
 import java.util.UUID;
+
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +24,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final SocialRepository socialRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final StringRedisTemplate redisTemplate;
 
     @Transactional(readOnly = true)
     public UserResponse getUserInfo(UUID userId) {
@@ -38,6 +44,33 @@ public class UserService {
                 .birthdate(user.getBirthdate())
                 .phoneNumber(user.getPhoneNumber())
                 .socialType(provider)
+                .build();
+    }
+
+    @Transactional
+    public TokenResponse reissue(String refreshToken) {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new RuntimeException("refresh Token이 유효하지 않습니다. 다시 로그인해주세요");
+        }
+
+        UUID userId = jwtTokenProvider.getUserId(refreshToken);
+        UserRole role = jwtTokenProvider.getRole(refreshToken);
+
+        String saveToken = redisTemplate.opsForValue().get("RT:" + userId.toString());
+        if (saveToken == null || !saveToken.equals(refreshToken)) {
+            throw new RuntimeException("Refresh Token 정보가 일치하지 않거나 만료되었습니다.");
+        }
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(userId, role);
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, role);
+
+        Duration ttl = Duration.ofMillis(jwtTokenProvider.getRefreshTokenValidity());
+        redisTemplate.opsForValue().set("RT:" + userId.toString(), newRefreshToken, ttl);
+
+        return TokenResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .grantType("Bearer")
                 .build();
     }
 }

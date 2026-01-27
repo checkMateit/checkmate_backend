@@ -1,14 +1,13 @@
 package com.checkit.userservice.controller;
 
 import com.checkit.common.dto.ApiResponse;
+import com.checkit.userservice.dto.ReissueRequest;
+import com.checkit.userservice.dto.TokenResponse;
 import com.checkit.userservice.dto.UserResponse;
 import com.checkit.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -32,5 +31,11 @@ public class UserController {
         UserResponse userResponse = userService.getUserInfo(userUuid);
 
         return ApiResponse.success(userResponse);
+    }
+
+    @PostMapping("/reissue")
+    public ApiResponse<TokenResponse> reissue(@RequestBody ReissueRequest request) {
+        TokenResponse tokenResponse = userService.reissue(request.getRefreshToken());
+        return ApiResponse.success(tokenResponse);
     }
 }

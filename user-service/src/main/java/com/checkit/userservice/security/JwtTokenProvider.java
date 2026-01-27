@@ -66,6 +66,29 @@ public class JwtTokenProvider {
         return refreshTokenValidity;
     }
 
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (Exception e){
+            log.error("JWT 검증 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public UserRole getRole(String token) {
+        String roleName = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class);
+        return UserRole.valueOf(roleName);
+    }
+
     public UUID getUserId(String token){
         String subject = Jwts.parser()
                 .verifyWith(key)
