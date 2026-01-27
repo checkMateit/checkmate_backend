@@ -17,14 +17,14 @@ public class InquiryCommentController {
 
     @PostMapping("/{inquiryId}/comments")
     public ApiResponse<InquiryCommentRes> saveInquiryComment(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable Long inquiryId,
             @RequestBody InquiryCommentReq req
     ) {
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
-
+        UUID userUuid = UUID.fromString(userId);
         InquiryCommentRes res = inquiryCommentService.addComment(
                 inquiryId,
-                dummyUserId,
+                userUuid,
                 req.getAuthorType(),
                 req.getContent()
         );
@@ -33,17 +33,17 @@ public class InquiryCommentController {
     }
     @PatchMapping("/{inquiryId}/comments/{commentId}")
     public ApiResponse<InquiryCommentRes> updateComment(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable Long inquiryId,
             @PathVariable Long commentId,
             @RequestBody InquiryCommentReq req
 
     ){
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
-
+        UUID userUuid = UUID.fromString(userId);
         InquiryCommentRes res = inquiryCommentService.updateComment(
                 inquiryId,
                 commentId,
-                dummyUserId,
+                userUuid,
                 req.getAuthorType(),
                 req.getContent());
 
@@ -53,18 +53,19 @@ public class InquiryCommentController {
 
     @DeleteMapping("/{inquiryId}/comments/{commentId}")
     public ApiResponse<Void> deleteComment(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable Long inquiryId,
             @PathVariable Long commentId
 
     ) {
         // TODO: 나중에 JWT에서 꺼내기
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        UUID userUuid = UUID.fromString(userId);
         String authorType = "USER"; // or "ADMIN"
 
         inquiryCommentService.deleteComment(
                 inquiryId,
                 commentId,
-                dummyUserId,
+                userUuid,
                 authorType
         );
 

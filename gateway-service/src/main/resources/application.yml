@@ -33,7 +33,7 @@ spring:
         - id: community-service
           uri: lb://COMMUNITY-SERVICE
           predicates:
-            - Path= /inquiries/**, /notices/**
+            - Path=/inquiries/**,/notices/**
           filters:
             - name: JwtAuthenticationFilter
 eureka:

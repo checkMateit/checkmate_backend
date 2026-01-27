@@ -20,42 +20,47 @@ public class InquiryController {
 
     @GetMapping("/me")
     public ApiResponse<InquiryListRes> getMyInquiries(
+            @RequestHeader("X-User-Id") String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         // TODO : 나중에 UUID 바꾸기
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
-        return ApiResponse.success(inquiryService.getMyInquiries(dummyUserId, page, size));
+        UUID userUuid = UUID.fromString(userId);
+        return ApiResponse.success(inquiryService.getMyInquiries(userUuid, page, size));
     }
 
     @GetMapping("/{inquiryId}")
-    public ApiResponse<InquiryDetailRes> getInquiryDetail(@PathVariable Long inquiryId) {
+    public ApiResponse<InquiryDetailRes> getInquiryDetail(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable Long inquiryId) {
 
         // TODO: JWT 붙이면 여기서 userId 꺼내기
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        UUID userUuid = UUID.fromString(userId);
         System.out.println("### CONTROLLER HIT /inquiries/" + inquiryId);
 
-        return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, dummyUserId));
+        return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, userUuid));
     }
     @PostMapping
     public ApiResponse<InquiryDetailRes> createInquiry(
+            @RequestHeader("X-User-Id") String userId,
             @RequestBody InquiryReq req
     ) {
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        UUID userUuid = UUID.fromString(userId);
 
-        InquiryDetailRes res = inquiryService.createInquiry(req, dummyUserId);
+        InquiryDetailRes res = inquiryService.createInquiry(req, userUuid);
         return ApiResponse.success(res);
     }
 
     @PatchMapping("/{inquiryId}")
     public ApiResponse<InquiryDetailRes> updateInquiry(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable Long inquiryId,
             @RequestBody InquiryReq req
     ){
-        UUID dummyUserId = UUID.fromString("267081d6-6494-5e96-8b99-2c637976b26b");
+        UUID userUuid = UUID.fromString(userId);
 
         InquiryDetailRes res =
-                inquiryService.updateInquiry(inquiryId, req, dummyUserId);
+                inquiryService.updateInquiry(inquiryId, req, userUuid);
 
         return ApiResponse.success(res);
     }
@@ -63,10 +68,11 @@ public class InquiryController {
     // TODO : 추후 softdelete로 바꿔야 함.
     @DeleteMapping("/{inquiryId}")
     public ApiResponse<InquiryDetailRes> deleteInquiry(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable Long inquiryId
     ){
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
-        inquiryService.deleteInquiry(inquiryId, dummyUserId);
+        UUID userUuid = UUID.fromString(userId);
+        inquiryService.deleteInquiry(inquiryId, userUuid);
         return ApiResponse.success();
 
     }

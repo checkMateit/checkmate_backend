@@ -1,4 +1,8 @@
+server:
+  port: 8082
 spring:
+  application:
+    name: community-service
   datasource:
     url: jdbc:postgresql://localhost:5432/sample
     username: user
@@ -11,9 +15,18 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
 eureka:
   client:
-    enabled: false
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.springframework.cloud.gateway: trace
+    com.checkit.gatewayservice: debug
 
 management:
   endpoints:
