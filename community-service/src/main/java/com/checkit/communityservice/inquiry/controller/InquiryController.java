@@ -52,7 +52,7 @@ public class InquiryController {
             @PathVariable Long inquiryId,
             @RequestBody InquiryReq req
     ){
-        UUID dummyUserId = UUID.fromString("ab937cea-8537-5b8c-98c9-bc3ebf7fb15c");
+        UUID dummyUserId = UUID.fromString("267081d6-6494-5e96-8b99-2c637976b26b");
 
         InquiryDetailRes res =
                 inquiryService.updateInquiry(inquiryId, req, dummyUserId);
