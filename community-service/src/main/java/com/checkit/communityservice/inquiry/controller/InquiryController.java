@@ -60,7 +60,7 @@ public class InquiryController {
         return ApiResponse.success(res);
     }
 
-
+    // TODO : 추후 softdelete로 바꿔야 함.
     @DeleteMapping("/{inquiryId}")
     public ApiResponse<InquiryDetailRes> deleteInquiry(
             @PathVariable Long inquiryId
