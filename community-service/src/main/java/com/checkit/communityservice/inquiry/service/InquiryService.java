@@ -89,6 +89,19 @@ public class InquiryService {
 
         inquiryRepository.delete(inquiry);
     }
+    //문의글 전체 조회
+    public InquiryListRes getInquiries(int page, int size, String status) {
+        var pageable = PageRequest.of(page, size);
+
+        Page<Inquiry> result;
+        if (status == null || status.isBlank()) {
+            result = inquiryRepository.findAll(pageable);
+        } else {
+            result = inquiryRepository.findAllByStatus(status, pageable);
+        }
+
+        return InquiryListRes.from(result);
+    }
 
 
 

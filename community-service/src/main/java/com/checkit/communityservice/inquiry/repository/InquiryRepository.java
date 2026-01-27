@@ -4,6 +4,7 @@ import com.checkit.communityservice.inquiry.entity.Inquiry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -17,5 +18,14 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Optional<Inquiry> findByInquiryIdAndUserId(Long inquiryId, UUID userId);
 
 
-    // TODO: 관리자 문의 목록 조회 -> queryDSL로 해보자.
+   //문의 전체 조회
+    Page<Inquiry> findAllByStatus(String status, Pageable pageable);
+
+    @Query("""
+        SELECT i FROM Inquiry i
+        ORDER BY
+          CASE WHEN i.status = 'PENDING' THEN 0 ELSE 1 END,
+          i.inquiryId DESC
+        """)
+    Page<Inquiry> findAllPendingFirst(Pageable pageable);
 }

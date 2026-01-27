@@ -70,5 +70,13 @@ public class InquiryController {
 
     }
 
+    @GetMapping
+    public ApiResponse<InquiryListRes> getInquiries(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status
+    ){
+        return  ApiResponse.success(inquiryService.getInquiries(page, size, status));
+    }
 }
 
