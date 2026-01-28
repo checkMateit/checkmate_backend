@@ -1,9 +1,7 @@
 package com.checkit.userservice.controller;
 
 import com.checkit.common.dto.ApiResponse;
-import com.checkit.userservice.dto.ReissueRequest;
-import com.checkit.userservice.dto.TokenResponse;
-import com.checkit.userservice.dto.UserResponse;
+import com.checkit.userservice.dto.*;
 import com.checkit.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +29,19 @@ public class UserController {
         UserResponse userResponse = userService.getUserInfo(userUuid);
 
         return ApiResponse.success(userResponse);
+    }
+
+    @PatchMapping("/me")
+    public ApiResponse<UserUpdateRes> updateMyInfo(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody UserUpdateReq request) {
+        log.info("Update request for User{}", userId);
+
+        UUID userUuid = UUID.fromString(userId);
+
+        UserUpdateRes response = userService.updateUserInfo(userUuid, request);
+
+        return ApiResponse.success(response);
     }
 
     @PostMapping("/reissue")

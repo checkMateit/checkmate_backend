@@ -1,14 +1,13 @@
 package com.checkit.userservice.service;
 
 import com.checkit.common.entity.UserRole;
-import com.checkit.userservice.dto.SocialLoginRequest;
-import com.checkit.userservice.dto.TokenResponse;
-import com.checkit.userservice.dto.UserResponse;
+import com.checkit.userservice.dto.*;
 import com.checkit.userservice.entity.SocialEntity;
 import com.checkit.userservice.entity.UserEntity;
 import com.checkit.userservice.repository.SocialRepository;
 import com.checkit.userservice.repository.UserRepository;
 import com.checkit.userservice.security.JwtTokenProvider;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,5 +71,20 @@ public class UserService {
                 .refreshToken(newRefreshToken)
                 .grantType("Bearer")
                 .build();
+    }
+
+    @Transactional
+    public UserUpdateRes updateUserInfo(UUID userId, UserUpdateReq request) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        user.updateProfile(
+                request.getNickname(),
+                request.getBirthdate(),
+                request.getGender(),
+                request.getPhoneNumber()
+        );
+
+        return UserUpdateRes.from(user);
     }
 }
