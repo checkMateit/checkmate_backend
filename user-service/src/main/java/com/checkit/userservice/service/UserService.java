@@ -87,4 +87,11 @@ public class UserService {
 
         return UserUpdateRes.from(user);
     }
+
+    @Transactional
+    public void deactivateUser(UUID userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        user.deactivate(); // isActive = false
+    }
 }

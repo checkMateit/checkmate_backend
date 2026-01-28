@@ -44,6 +44,12 @@ public class UserController {
         return ApiResponse.success(response);
     }
 
+    @PatchMapping("/me/deactivate")
+    public ApiResponse<Void> deactivate(@RequestHeader("X-User-Id") String userId) {
+        userService.deactivateUser(UUID.fromString(userId));
+        return ApiResponse.success(null);
+    }
+
     @PostMapping("/reissue")
     public ApiResponse<TokenResponse> reissue(@RequestBody ReissueRequest request) {
         TokenResponse tokenResponse = userService.reissue(request.getRefreshToken());
