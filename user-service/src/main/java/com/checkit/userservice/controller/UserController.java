@@ -55,4 +55,15 @@ public class UserController {
         TokenResponse tokenResponse = userService.reissue(request.getRefreshToken());
         return ApiResponse.success(tokenResponse);
     }
+
+    @GetMapping("/check-nickname")
+    public ApiResponse<NickNameCheckRes> checkNickname(
+            @RequestParam("nickname") String nickname
+    ) {
+        log.info("Checking nickname availability: {}", nickname);
+
+        NickNameCheckRes response = userService.checkNicknameAvailability(nickname);
+
+        return ApiResponse.success(response);
+    }
 }

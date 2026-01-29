@@ -94,4 +94,14 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
         user.deactivate(); // isActive = false
     }
+
+    @Transactional(readOnly = true)
+    public NickNameCheckRes checkNicknameAvailability(String nickName) {
+        boolean isAvailable = !userRepository.existsByNickname(nickName);
+
+        return NickNameCheckRes.builder()
+                .isAvailable(isAvailable)
+                .nickName(nickName)
+                .build();
+    }
 }
