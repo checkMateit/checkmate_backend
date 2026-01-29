@@ -25,11 +25,9 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
     public GatewayFilter apply(Config config) {
         return ((exchange, chain) -> {
 
-            System.out.println(">>>> [Filter] 요청 진입: " + exchange.getRequest().getURI());
             String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                System.out.println(">>>> [Filter] 헤더 누락 또는 형식 불일치");
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
@@ -37,11 +35,9 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
             String token = authHeader.substring(7);
 
             if (!jwtTokenProvider.validateToken(token)) {
-                System.out.println(">>>> [Filter] 토큰 검증 실패");
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
-            System.out.println(">>>> [Filter] 인증 성공! UserID: " + jwtTokenProvider.getUserId(token));
 
             ServerHttpRequest request = exchange.getRequest().mutate()
                     .header("X-User-Id", jwtTokenProvider.getUserId(token))

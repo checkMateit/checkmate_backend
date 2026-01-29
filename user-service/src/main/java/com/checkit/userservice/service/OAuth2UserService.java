@@ -55,7 +55,13 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
     private UserEntity saveOrUpdate(OAuthAttributes attributes, String provider) {
         return socialRepository.findByProviderAndProviderUserId(provider, attributes.getProviderUserId())
                 .map(social -> {
-                    return social.getUser();
+                    UserEntity user = social.getUser();
+
+                    if (!user.isActive()) {
+                        user.activate();
+                    }
+
+                    return user;
                 })
                 .orElseGet(() -> {
                     UserEntity newUser = userRepository.save(attributes.toEntity());

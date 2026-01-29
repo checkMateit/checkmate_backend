@@ -25,7 +25,7 @@ public class JwtTokenProvider {
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secretKey,
             @Value("${jwt.access-token-expiration}") long accessTokenValidity,
-            @Value("${jwt.refresh-token-expiration:604800000}") long refreshTokenValidity){
+            @Value("${jwt.refresh-token-expiration}") long refreshTokenValidity){
         this.secretKey = secretKey;
         this.accessTokenValidity = accessTokenValidity;
         this.refreshTokenValidity = refreshTokenValidity;
