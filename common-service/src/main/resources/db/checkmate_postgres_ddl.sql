@@ -239,11 +239,11 @@ CREATE TABLE users (
   user_id UUID NOT NULL DEFAULT gen_random_uuid(),
   email VARCHAR(255) NOT NULL,
   name VARCHAR(50) NOT NULL,
-  nickname VARCHAR(50) NOT NULL,
-  gender VARCHAR(10),
-  birthdate DATE,
-  phone_number VARCHAR(20),
   role VARCHAR(20) NOT NULL DEFAULT 'USER',
+  nickname VARCHAR(50) NOT NULL,
+  gender VARCHAR(10) ,
+  birthdate DATE ,
+  phone_number VARCHAR(20) ,
   is_active BOOLEAN NOT NULL DEFAULT true,
   fav_category_1 VARCHAR(10),
   fav_category_2 VARCHAR(10),
@@ -306,7 +306,7 @@ CREATE TABLE group_verification_methods (
   CONSTRAINT pk_group_verification_methods PRIMARY KEY (method_id)
 );
 
--- Column comments
+-- Column commednts
 COMMENT ON COLUMN inquiry_comment.author_type IS 'ADMIN, USER';
 COMMENT ON COLUMN group_exemption.group_id IS '고유 스터디 ID';
 COMMENT ON COLUMN group_exemption.limit_unit IS 'WEEK / MONTH / TOTAL';

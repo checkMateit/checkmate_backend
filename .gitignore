@@ -36,6 +36,14 @@ out/
 ### VS Code ###
 .vscode/
 
+**/application-secret.yml
+
+# local db data
+postgres-data/
+
+# generated files
+**/src/main/generated/docker-compose.yml
+
 src/main/resources/application-secret.yml
 
 .env

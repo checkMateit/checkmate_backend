@@ -24,7 +24,13 @@ public enum CommonCode {
     EMAIL_DUPLICATED(HttpStatus.CONFLICT, 4103, "이미 존재하는 이메일입니다."),
 
     // ✅ 서버 오류
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 5000, "서버 오류");
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 5000, "서버 오류"),
+
+    // 문의 오류
+    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, 4200, "문의가 존재하지 않습니다."),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 4201, "댓글이 존재하지 않습니다."),
+    // 공지사항 오류
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, 4300, "공지사항이 존재하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final int code;
