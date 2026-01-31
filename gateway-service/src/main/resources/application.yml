@@ -30,12 +30,19 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
 
+
         - id: community-service
           uri: lb://COMMUNITY-SERVICE
           predicates:
             - Path=/inquiries/**,/notices/**
           filters:
             - name: JwtAuthenticationFilter
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION}
+
 eureka:
   client:
     service-url:

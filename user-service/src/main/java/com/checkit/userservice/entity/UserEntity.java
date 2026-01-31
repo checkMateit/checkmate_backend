@@ -55,4 +55,28 @@ public class UserEntity {
         this.role = (role != null) ? role : UserRole.USER;
         this.isActive = true;
     }
+
+    public void updateProfile(String nickname, LocalDate birthdate, String gender, String phoneNumber) {
+        if (nickname != null && !nickname.isBlank()) {
+            this.nickname = nickname;
+        }
+        if (birthdate != null) {
+            this.birthdate = birthdate;
+        }
+        if (gender != null && !gender.isBlank()) {
+            this.gender = gender;
+        }
+        if (phoneNumber != null && !phoneNumber.isBlank()) {
+            this.phoneNumber = phoneNumber;
+        }
+    }
+
+    public void deactivate() {
+        this.isActive = false;
+    }
+
+    public void activate() {
+        this.isActive = true;
+    }
+
 }
