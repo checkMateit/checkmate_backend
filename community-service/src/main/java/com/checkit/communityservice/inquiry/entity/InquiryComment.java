@@ -1,8 +1,10 @@
 package com.checkit.communityservice.inquiry.entity;
 
 
+import com.checkit.common.entity.AuditBaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -11,8 +13,9 @@ import java.util.UUID;
 @Table(name = "inquiry_comment")
 @Getter
 @Setter
+@Where(clause = "deleted_at IS NULL")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class InquiryComment {
+public class InquiryComment extends AuditBaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,8 +36,6 @@ public class InquiryComment {
     private String content;
 
 
-    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
-    private LocalDateTime createdAt;
 
     @Builder
     private InquiryComment(Long inquiryId, UUID userId, String authorType, String content) {
