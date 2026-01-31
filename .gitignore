@@ -18,7 +18,7 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -37,4 +37,14 @@ out/
 .vscode/
 
 **/application-secret.yml
+
+
+# local db data
 postgres-data/
+
+# generated files
+**/src/main/generated/docker-compose.yml
+
+src/main/resources/application-secret.yml
+
+.env
