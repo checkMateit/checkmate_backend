@@ -38,6 +38,7 @@ out/
 
 **/application-secret.yml
 
+
 # local db data
 postgres-data/
 
@@ -47,4 +48,3 @@ postgres-data/
 src/main/resources/application-secret.yml
 
 .env
-postgres-data/
