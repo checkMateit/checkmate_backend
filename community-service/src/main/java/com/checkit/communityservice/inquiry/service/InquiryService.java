@@ -50,7 +50,7 @@ public class InquiryService {
                 });
 
         List<InquiryCommentRes> comments =
-                inquiryCommentRepository.findByInquiryId(inquiryId)
+                inquiryCommentRepository.findAllByInquiryIdOrderByCreatedAtDesc(inquiryId)
                         .stream()
                         .map(InquiryCommentRes::from)
                         .toList();
