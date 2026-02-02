@@ -1,5 +1,6 @@
 package com.checkit.userservice.service;
 
+import com.checkit.common.entity.CategoryType;
 import com.checkit.common.entity.UserRole;
 import com.checkit.userservice.dto.*;
 import com.checkit.userservice.entity.SocialEntity;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -126,5 +128,33 @@ public class UserService {
                 .isAvailable(isAvailable)
                 .nickName(nickName)
                 .build();
+    }
+
+    @Transactional
+    public FavoriteCategoryRes updateFavorites(UUID userId, FavoriteCategoryReq request) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        List<CategoryType> categories = request.getCategoryIds().stream()
+                .map(id -> {
+                    try {
+                        return CategoryType.valueOf(id.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        throw new RuntimeException("유효하지 않은 카테고리 ID입니다: " + id);
+                    }
+                })
+                .toList();
+
+        user.updateFavoriteCategories(categories, userId);
+
+        return FavoriteCategoryRes.from(user);
+    }
+
+    @Transactional(readOnly = true)
+    public FavoriteCategoryRes getFavoriteCategories(UUID userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        return FavoriteCategoryRes.from(user);
     }
 }

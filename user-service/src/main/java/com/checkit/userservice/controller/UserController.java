@@ -73,4 +73,26 @@ public class UserController {
         userService.withdrawUser(UUID.fromString(userId));
         return ApiResponse.success(null);
     }
+
+    @PatchMapping("/me/favorite-categories")
+    public ApiResponse<FavoriteCategoryRes> updateFavoriteCategories(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody FavoriteCategoryReq request) {
+
+        log.info("Update favorite categories for User: {}", userId);
+
+        FavoriteCategoryRes response = userService.updateFavorites(UUID.fromString(userId), request);
+
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/me/favorite-categories")
+    public ApiResponse<FavoriteCategoryRes> getFavoriteCategories(
+            @RequestHeader("X-User-Id") String userId) {
+
+        log.info("Get favorite categories for User: {}", userId);
+        FavoriteCategoryRes response = userService.getFavoriteCategories(UUID.fromString(userId));
+
+        return ApiResponse.success(response);
+    }
 }

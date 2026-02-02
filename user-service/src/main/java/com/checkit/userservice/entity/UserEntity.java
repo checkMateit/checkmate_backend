@@ -1,12 +1,14 @@
 package com.checkit.userservice.entity;
 
 import com.checkit.common.entity.AuditBaseEntity;
+import com.checkit.common.entity.CategoryType;
 import com.checkit.common.entity.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -52,6 +54,18 @@ public class UserEntity extends AuditBaseEntity {
     @Column(nullable = false)
     private UserRole role = UserRole.USER;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fav_category_1", length = 10)
+    private CategoryType favCategory1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fav_category_2", length = 10)
+    private CategoryType favCategory2;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fav_category_3", length = 10)
+    private CategoryType favCategory3;
+
     public void updateProfile(String nickname, LocalDate birthdate, String gender, String phoneNumber, UUID actorId) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
@@ -82,6 +96,14 @@ public class UserEntity extends AuditBaseEntity {
     public void withdraw(UUID actorId) {
         this.isActive = false;
         this.softDelete(actorId);
+    }
+
+    public void updateFavoriteCategories(List<CategoryType> categories, UUID actorId) {
+        this.favCategory1 = (categories.size() >= 1) ? categories.get(0) : null;
+        this.favCategory2 = (categories.size() >= 2) ? categories.get(1) : null;
+        this.favCategory3 = (categories.size() >= 3) ? categories.get(2) : null;
+
+        this.setUpdater(actorId);
     }
 
 }
