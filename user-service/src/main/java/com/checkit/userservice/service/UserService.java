@@ -78,11 +78,16 @@ public class UserService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
 
+        if (user.isDeleted()) {
+            throw new EntityNotFoundException("삭제되거나 존재하지 않는 사용자입니다.");
+        }
+
         user.updateProfile(
                 request.getNickname(),
                 request.getBirthdate(),
                 request.getGender(),
-                request.getPhoneNumber()
+                request.getPhoneNumber(),
+                userId
         );
 
         return UserUpdateRes.from(user);
@@ -92,7 +97,25 @@ public class UserService {
     public void deactivateUser(UUID userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-        user.deactivate(); // isActive = false
+        user.deactivate(userId); // isActive = false
+    }
+
+    @Transactional
+    public void withdrawUser(UUID userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        if (user.isDeleted()) {
+            throw new IllegalStateException("이미 탈퇴 처리된 사용자입니다.");
+        }
+
+        user.withdraw(userId);
+
+        socialRepository.findByUser(user).ifPresent(social -> {
+            social.softDelete(userId);
+        });
+
+        redisTemplate.delete("RT:" + userId.toString());
     }
 
     @Transactional(readOnly = true)

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -57,20 +58,29 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
                 .map(social -> {
                     UserEntity user = social.getUser();
 
+                    if (user.isDeleted()) {
+                        throw new OAuth2AuthenticationException("탈퇴 처리된 계정입니다. 고객센터에 문의하세요");
+                    }
+
                     if (!user.isActive()) {
-                        user.activate();
+                        user.activate(user.getUserId());
                     }
 
                     return user;
                 })
                 .orElseGet(() -> {
-                    UserEntity newUser = userRepository.save(attributes.toEntity());
+                    UUID newUserId = UUID.randomUUID();
+
+                    UserEntity userToSave = attributes.toEntity(newUserId);
+
+                    UserEntity newUser = userRepository.save(userToSave);
 
                     socialRepository.save(SocialEntity.builder()
                             .user(newUser)
                             .provider(provider)
                             .providerUserId(attributes.getProviderUserId())
                             .email(attributes.getEmail())
+                            .createdBy(newUser.getUserId())
                             .build());
 
                     return newUser;

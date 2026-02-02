@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Getter
 public class OAuthAttributes {
@@ -39,12 +40,14 @@ public class OAuthAttributes {
     }
 
     //처음 가입할 때 UserEntity 생성 메서드
-    public UserEntity toEntity() {
+    public UserEntity toEntity(UUID userId) {
         return UserEntity.builder()
+                .userId(userId)
                 .name(name)
                 .email(email)
                 .profileImageUrl(picture)
                 .nickname(name + "-" + providerUserId.substring(0, 5))
+                .createdBy(userId)
                 .build();
     }
 }

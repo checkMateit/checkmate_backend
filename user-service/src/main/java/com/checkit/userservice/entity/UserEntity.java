@@ -1,8 +1,10 @@
 package com.checkit.userservice.entity;
 
+import com.checkit.common.entity.AuditBaseEntity;
 import com.checkit.common.entity.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -10,8 +12,10 @@ import java.util.UUID;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@SuperBuilder
 @Table(name = "users")
-public class UserEntity {
+public class UserEntity extends AuditBaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -36,27 +40,19 @@ public class UserEntity {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role = UserRole.USER;
 
-    @Builder
-    public UserEntity(String email, String name, String nickname, String profileImageUrl) {
-        this.email = email;
-        this.name = name;
-        this.nickname = nickname;
-        this.profileImageUrl = profileImageUrl;
-        this.role = (role != null) ? role : UserRole.USER;
-        this.isActive = true;
-    }
-
-    public void updateProfile(String nickname, LocalDate birthdate, String gender, String phoneNumber) {
+    public void updateProfile(String nickname, LocalDate birthdate, String gender, String phoneNumber, UUID actorId) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
         }
@@ -69,14 +65,23 @@ public class UserEntity {
         if (phoneNumber != null && !phoneNumber.isBlank()) {
             this.phoneNumber = phoneNumber;
         }
+
+        this.setUpdater(actorId);
     }
 
-    public void deactivate() {
+    public void deactivate(UUID actorId) {
         this.isActive = false;
+        this.setUpdater(actorId);
     }
 
-    public void activate() {
+    public void activate(UUID actorId) {
         this.isActive = true;
+        this.setUpdater(actorId);
+    }
+
+    public void withdraw(UUID actorId) {
+        this.isActive = false;
+        this.softDelete(actorId);
     }
 
 }

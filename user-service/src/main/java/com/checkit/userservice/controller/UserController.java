@@ -66,4 +66,11 @@ public class UserController {
 
         return ApiResponse.success(response);
     }
+
+    @PatchMapping("/me/withdraw")
+    public ApiResponse<Void> withdraw(@RequestHeader("X-User-Id") String userId) {
+        log.info("Withdraw request for User: {}", userId);
+        userService.withdrawUser(UUID.fromString(userId));
+        return ApiResponse.success(null);
+    }
 }
