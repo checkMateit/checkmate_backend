@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -19,6 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class InquiryCommentService {
+
     private final InquiryRepository inquiryRepository;
     private final InquiryCommentRepository inquiryCommentRepository;
 
@@ -32,13 +35,8 @@ public class InquiryCommentService {
                 .orElseThrow(() -> new BusinessException(CommonCode.COMMENT_NOT_FOUND));
     }
 
-    //댓글 달기
-    public InquiryCommentRes addComment(
-            Long inquiryId,
-            UUID userId,
-            String role,
-            String content
-    ) {
+    //  댓글 달기
+    public InquiryCommentRes addComment(Long inquiryId, UUID userId, String role, String content) {
         Inquiry inquiry = getInquiryOrThrow(inquiryId);
 
         boolean isAdmin = "ADMIN".equals(role);
@@ -50,48 +48,53 @@ public class InquiryCommentService {
                 .content(content)
                 .build();
 
-        inquiryCommentRepository.save(comment);
+
+        comment.setCreator(userId); // created_by
+
+
+        InquiryComment saved = inquiryCommentRepository.save(comment);
+
 
         inquiry.changeStatus(isAdmin ? "ANSWERED" : "PENDING");
+        inquiry.setUpdater(userId);
 
-        return InquiryCommentRes.from(comment);
+        return InquiryCommentRes.from(saved);
     }
 
-    //댓글 수정하기
-    public InquiryCommentRes updateComment(
-            Long inquiryId,
-            Long commentId,
-            UUID userId,
-            String role,
-            String content
-    ) {
+    //  댓글 수정하기
+    public InquiryCommentRes updateComment(Long inquiryId, Long commentId, UUID userId, String role, String content) {
         InquiryComment comment = getCommentOrThrow(commentId, inquiryId);
 
         boolean isAdmin = "ADMIN".equals(role);
-
         if (!isAdmin && !comment.getUserId().equals(userId)) {
             throw new BusinessException(CommonCode.FORBIDDEN);
         }
 
         comment.setContent(content);
-        return InquiryCommentRes.from(comment);
+
+
+        comment.setUpdater(userId);
+        comment.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+
+        InquiryComment saved = inquiryCommentRepository.save(comment);
+
+        return InquiryCommentRes.from(saved);
     }
 
-    //댓글 삭제하기
-    public void deleteComment(
-            Long inquiryId,
-            Long commentId,
-            UUID userId,
-            String role
-    ) {
+    //  댓글 삭제하기 (soft delete)
+    public void deleteComment(Long inquiryId, Long commentId, UUID userId, String role) {
         InquiryComment comment = getCommentOrThrow(commentId, inquiryId);
 
         boolean isAdmin = "ADMIN".equals(role);
-
         if (!isAdmin && !comment.getUserId().equals(userId)) {
             throw new BusinessException(CommonCode.FORBIDDEN);
         }
 
-        inquiryCommentRepository.delete(comment);
+
+        comment.softDelete(userId);
+        comment.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+        inquiryCommentRepository.save(comment);
     }
 }

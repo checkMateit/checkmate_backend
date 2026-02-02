@@ -37,7 +37,7 @@ CREATE TABLE inquiry_comment (
   user_id UUID NOT NULL,
   author_type VARCHAR(10) NOT NULL,
   content TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now(),
+
   CONSTRAINT pk_inquiry_comment PRIMARY KEY (comment_id)
 );
 

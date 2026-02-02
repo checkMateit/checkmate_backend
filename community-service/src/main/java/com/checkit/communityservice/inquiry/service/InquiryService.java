@@ -14,8 +14,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,14 +30,12 @@ public class InquiryService {
     private final InquiryCommentRepository inquiryCommentRepository;
 
     public InquiryListRes getMyInquiries(UUID userId, int page, int size) {
-        var pageable = PageRequest.of(page, size
-//                Sort.by(Sort.Direction.DESC, "createdAt")
+        var pageable = PageRequest.of(
+                page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
         );
+
         Page<Inquiry> result = inquiryRepository.findByUserId(userId, pageable);
-
-
-        result.getContent().forEach(inquiry -> log.info(" -> Inquiry ID: {}", inquiry.getInquiryId()));
-
         return InquiryListRes.from(result);
     }
 
@@ -50,7 +50,7 @@ public class InquiryService {
                 });
 
         List<InquiryCommentRes> comments =
-                inquiryCommentRepository.findByInquiryId(inquiryId)
+                inquiryCommentRepository.findAllByInquiryIdOrderByCreatedAtDesc(inquiryId)
                         .stream()
                         .map(InquiryCommentRes::from)
                         .toList();
@@ -66,32 +66,42 @@ public class InquiryService {
                 .userId(userId)
                 .build();
 
-        Inquiry save = inquiryRepository.save(inquiry);
-        return InquiryDetailRes.of(save, List.of());
+
+        inquiry.setCreator(userId);
+
+        Inquiry saved = inquiryRepository.save(inquiry);
+        return InquiryDetailRes.of(saved, List.of());
     }
 
 
     //문의글 수정하기
     public InquiryDetailRes updateInquiry(Long inquiryId, InquiryReq req, UUID userId) {
-        Inquiry inquiry = inquiryRepository
-                .findByInquiryIdAndUserId(inquiryId, userId)
+        Inquiry inquiry = inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
                 .orElseThrow(() -> new BusinessException(CommonCode.INQUIRY_NOT_FOUND));
 
         inquiry.update(req.getTitle(), req.getContent());
+        inquiry.setUpdater(userId);
+        inquiryRepository.flush();
 
         return InquiryDetailRes.of(inquiry, List.of());
     }
 
     //문의글 삭제하기
     public void deleteInquiry(Long inquiryId, UUID userId) {
-        Inquiry inquiry= inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
+        Inquiry inquiry = inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
                 .orElseThrow(() -> new BusinessException(CommonCode.INQUIRY_NOT_FOUND));
 
-        inquiryRepository.delete(inquiry);
+
+        inquiry.softDelete(userId);
+        inquiryRepository.save(inquiry);
+
     }
     //문의글 전체 조회
     public InquiryListRes getInquiries(int page, int size, String status) {
-        var pageable = PageRequest.of(page, size);
+        var pageable = PageRequest.of(
+                page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
 
         Page<Inquiry> result;
         if (status == null || status.isBlank()) {

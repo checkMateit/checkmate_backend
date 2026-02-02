@@ -11,6 +11,6 @@ public interface InquiryCommentRepository extends JpaRepository<InquiryComment, 
     //댓글 수정
     Optional<InquiryComment> findByCommentIdAndInquiryId(Long commentId, Long inquiryId);
 
-    List<InquiryComment> findByInquiryId(Long inquiryId);
+    List<InquiryComment> findAllByInquiryIdOrderByCreatedAtDesc(Long inquiryId);
 
 }

@@ -25,7 +25,7 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
         SELECT i FROM Inquiry i
         ORDER BY
           CASE WHEN i.status = 'PENDING' THEN 0 ELSE 1 END,
-          i.inquiryId DESC
+          i.createdAt DESC
         """)
     Page<Inquiry> findAllPendingFirst(Pageable pageable);
 }
