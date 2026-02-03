@@ -30,6 +30,18 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
 
+        - id: store-service-internal
+          uri: lb://STORE-SERVICE
+          predicates:
+            - Path=/internal/**
+
+
+        - id: store-service-public
+          uri: lb://STORE-SERVICE
+          predicates:
+            - Path=/points/**
+          filters:
+            - name: JwtAuthenticationFilter
 
         - id: community-service
           uri: lb://COMMUNITY-SERVICE
