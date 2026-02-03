@@ -16,6 +16,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -59,7 +60,6 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .endDate(request.getPeriod().getEndDate())
                 .durationWeeks(request.getPeriod().getDurationWeeks())
                 .isIndefinite(request.getPeriod().getIsIndefinite())
-                .waitingEnabled(Optional.ofNullable(request.getWaitingEnabled()).orElse(false))
                 .build();
         group.setCreator(actor);
 
@@ -80,15 +80,16 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         }
         StudyGroupCreateReq.Period p = request.getPeriod();
         if (Boolean.TRUE.equals(p.getIsIndefinite())) {
-            // 무기한이면 기간값은 선택
-            return;
-        }
+            // 무기한이면 기간값은 선택 (rules 검증은 계속 진행)
+        } else {
         // 유한 기간이면 (range or duration) 최소한 하나는 맞춰야 함
         boolean hasRange = p.getStartDate() != null && p.getEndDate() != null;
         boolean hasDuration = p.getStartDate() != null && p.getDurationWeeks() != null;
         if (!hasRange && !hasDuration) {
             throw new BusinessException(CommonCode.BAD_REQUEST, "period는 RANGE(start_date+end_date) 또는 DURATION(start_date+duration_weeks) 또는 INDEFINITE(is_indefinite=true) 중 하나여야 합니다.");
         }
+        }
+
 
         // rules slot unique
         Set<Integer> slots = request.getVerificationRules().stream()
@@ -98,7 +99,14 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             throw new BusinessException(CommonCode.BAD_REQUEST, "동일한 slot 값이 중복되었습니다.");
         }
 
-        // time overlap
+        // slot range (1/2)
+        for (Integer slot : slots) {
+            if (slot == null || (slot != 1 && slot != 2)) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2만 가능합니다.");
+            }
+        }
+
+        // days overlap (start_time 제거 정책)
         List<StudyGroupCreateReq.VerificationRule> rules = request.getVerificationRules();
         if (rules.size() == 2) {
             StudyGroupCreateReq.VerificationRule a = rules.get(0);
@@ -112,18 +120,9 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     }
 
     private boolean isOverlap(StudyGroupCreateReq.Schedule a, StudyGroupCreateReq.Schedule b) {
-        Set<String> daysA = new HashSet<>(a.getDaysOfWeek());
-        Set<String> daysB = new HashSet<>(b.getDaysOfWeek());
-        daysA.retainAll(daysB);
-        if (daysA.isEmpty()) return false;
-
-        LocalTime aStart = LocalTime.parse(a.getStartTime(), HH_MM);
-        LocalTime aEnd = LocalTime.parse(a.getEndTime(), HH_MM);
-        LocalTime bStart = LocalTime.parse(b.getStartTime(), HH_MM);
-        LocalTime bEnd = LocalTime.parse(b.getEndTime(), HH_MM);
-
-        // [start,end) 기준
-        return aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
+        int maskA = toDayMask(a.getDaysOfWeek());
+        int maskB = toDayMask(b.getDaysOfWeek());
+        return (maskA & maskB) != 0;
     }
 
     private void upsertHashtags(Long groupId, UUID actor, List<String> hashtags) {
@@ -168,12 +167,18 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             int slot = r.getSlot();
 
             StudyGroupCreateReq.Schedule s = r.getSchedule();
+
+            boolean hasChecklist = r.getMethods() != null && r.getMethods().stream()
+                    .anyMatch(m -> m.getMethodCode() == VerificationMethodCode.CHECKLIST);
+            if (hasChecklist && (s.getCheckEndTime() == null || s.getCheckEndTime().isBlank())) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "CHECKLIST 인증은 schedule.check_end_time이 필요합니다.");
+            }
             GroupVerificationSchedule schedule = GroupVerificationSchedule.builder()
                     .groupId(groupId)
                     .slot(slot)
-                    .startTime(LocalTime.parse(s.getStartTime(), HH_MM))
-                    .endTime(LocalTime.parse(s.getEndTime(), HH_MM))
-                    .daysOfWeek(String.join(",", s.getDaysOfWeek()))
+                                        .endTime(LocalTime.parse(s.getEndTime(), HH_MM))
+                    .checkEndTime(parseOptionalTime(s.getCheckEndTime()))
+                    .daysOfWeek(toDayMask(s.getDaysOfWeek()))
                     .timezone(s.getTimezone())
                     .build();
             schedule.setCreator(actor);
@@ -248,5 +253,42 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         } catch (JsonProcessingException e) {
             throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "method details json serialize 실패");
         }
+    }
+
+    private LocalTime parseOptionalTime(String hhmm) {
+        if (hhmm == null || hhmm.isBlank()) return null;
+        try {
+            return LocalTime.parse(hhmm, HH_MM);
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "시간 형식 오류(HH:mm): " + hhmm);
+        }
+    }
+
+    private int toDayMask(List<String> daysOfWeek) {
+        if (daysOfWeek == null || daysOfWeek.isEmpty()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "days_of_week는 비어있을 수 없습니다.");
+        }
+
+        int mask = 0;
+        for (String raw : daysOfWeek) {
+            if (raw == null || raw.isBlank()) continue;
+            String d = raw.trim().toUpperCase(Locale.ROOT);
+
+            switch (d) {
+                case "MON" -> mask |= (1 << 0);
+                case "TUE" -> mask |= (1 << 1);
+                case "WED" -> mask |= (1 << 2);
+                case "THU" -> mask |= (1 << 3);
+                case "FRI" -> mask |= (1 << 4);
+                case "SAT" -> mask |= (1 << 5);
+                case "SUN" -> mask |= (1 << 6);
+                default -> throw new BusinessException(CommonCode.BAD_REQUEST, "요일 값 오류: " + raw);
+            }
+        }
+
+        if (mask == 0) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "days_of_week는 유효한 값이 필요합니다.");
+        }
+        return mask;
     }
 }

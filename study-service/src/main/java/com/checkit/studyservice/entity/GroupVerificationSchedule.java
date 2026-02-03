@@ -24,19 +24,18 @@ public class GroupVerificationSchedule extends AuditBaseEntity {
     @Column(name = "group_id", nullable = false)
     private Long groupId;
 
-    // 스펙(slot=1/2) - DDL에 없지만 ddl-auto=update로 추가될 수 있음
-    @Column(name = "slot")
+    @Column(name = "slot", nullable = false)
     private Integer slot;
 
-    @Column(name = "start_time")
-    private LocalTime startTime;
-
-    @Column(name = "end_time")
+    @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
+
+    @Column(name = "check_end_time")
+    private LocalTime checkEndTime;
 
     // 스펙: ["MON", ...] -> 간단히 CSV로 저장
     @Column(name = "days_of_week", nullable = false)
-    private String daysOfWeek;
+    private Integer daysOfWeek; // bitmask
 
     @Column(name = "timezone", nullable = false)
     private String timezone;

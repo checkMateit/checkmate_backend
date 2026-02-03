@@ -22,7 +22,7 @@ public class GroupVerificationMethod extends AuditBaseEntity {
     @Column(name = "group_id", nullable = false)
     private Long groupId;
 
-    @Column(name = "slot")
+    @Column(name = "slot", nullable = false)
     private Integer slot;
 
     @Enumerated(EnumType.STRING)

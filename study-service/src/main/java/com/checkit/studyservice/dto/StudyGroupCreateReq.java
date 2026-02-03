@@ -42,8 +42,6 @@ public class StudyGroupCreateReq {
     @Min(1)
     private Integer maxMembers;
 
-    private Boolean waitingEnabled;
-
     @Valid
     @NotNull
     private Period period;
@@ -103,9 +101,8 @@ public class StudyGroupCreateReq {
     @Builder
     public static class Schedule {
         @NotBlank
-        private String startTime; // HH:mm
-        @NotBlank
         private String endTime; // HH:mm
+        private String checkEndTime; // HH:mm (optional)
         @NotEmpty
         private List<String> daysOfWeek; // MON..
         @NotBlank

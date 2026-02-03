@@ -74,8 +74,4 @@ public class StudyGroup extends AuditBaseEntity {
 
     @Column(name = "closed_at")
     private OffsetDateTime closedAt;
-
-    // DDL에 없지만 스펙에 있어 update로 컬럼 생성될 수 있음
-    @Column(name = "waiting_enabled")
-    private Boolean waitingEnabled;
 }
