@@ -1,18 +1,16 @@
 package com.checkit.userservice.service;
 
-import com.checkit.userservice.dto.BadgeAdminReq;
-import com.checkit.userservice.dto.BadgeAdminRes;
-import com.checkit.userservice.dto.BadgeDeleteRes;
-import com.checkit.userservice.dto.UserBadgeRes;
+import com.checkit.userservice.dto.*;
 import com.checkit.userservice.entity.BadgeEntity;
 import com.checkit.userservice.entity.UserBadgeEntity;
 import com.checkit.userservice.repository.BadgeRepository;
 import com.checkit.userservice.repository.UserBadgeRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -116,5 +114,52 @@ public class BadgeService {
             case 30 -> 4L;
             default -> null;
         };
+    }
+
+    @Transactional(readOnly = true)
+    public MyBadgeListRes getMyBadges(UUID userId) {
+
+        List<UserBadgeEntity> userBadges = userBadgeRepository.findAllByUserId(userId);
+
+        List<Long> badgeIds = userBadges.stream()
+                .map(UserBadgeEntity::getBadgeId)
+                .toList();
+
+        Map<Long, BadgeEntity> badgeInfoMap = badgeRepository.findAllById(badgeIds).stream()
+                .collect(Collectors.toMap(BadgeEntity::getBadgeId, b -> b));
+
+        List<MyBadgeListRes.MyBadgeItemRes> badgeItems = userBadges.stream()
+                .map(ub -> {
+                    BadgeEntity original = badgeInfoMap.get(ub.getBadgeId());
+                    return MyBadgeListRes.MyBadgeItemRes.from(
+                            ub,
+                            original != null ? original.getDescription() : "",
+                            original != null ? original.getImageUrl() : ""
+                    );
+                })
+                .toList();
+
+        return MyBadgeListRes.from(badgeItems);
+    }
+
+    @Transactional
+    public MyBadgeListRes.MyBadgeItemRes equipBadge(UUID userId, Long badgeUserId) {
+
+        userBadgeRepository.findByUserIdAndIsEquippedTrue(userId)
+                .ifPresent(badge -> badge.updateEquipped(false, userId));
+
+        UserBadgeEntity targetBadge = userBadgeRepository.findById(badgeUserId)
+                .orElseThrow(() -> new RuntimeException("보유하지 않은 뱃지입니다."));
+
+        if (!targetBadge.getUserId().equals(userId)) {
+            throw new RuntimeException("본인의 뱃지만 장착할 수 있습니다.");
+        }
+
+        targetBadge.updateEquipped(true, userId);
+
+        BadgeEntity original = badgeRepository.findById(targetBadge.getBadgeId())
+                .orElseThrow(() -> new RuntimeException("원본 뱃지 정보를 찾을 수 없습니다."));
+
+        return MyBadgeListRes.MyBadgeItemRes.from(targetBadge, original.getDescription(), original.getImageUrl());
     }
 }

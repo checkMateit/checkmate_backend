@@ -137,7 +137,7 @@ CREATE TABLE badge_user (
   badge_id BIGINT NOT NULL,
   name VARCHAR(20) NOT NULL,
   earned_at TIMESTAMP NOT NULL DEFAULT now(),
-  is_equipped VARCHAR(255) NOT NULL DEFAULT false,
+  is_equipped BOOLEAN NOT NULL DEFAULT false,
   CONSTRAINT pk_badge_user PRIMARY KEY (badge_user_id)
 );
 

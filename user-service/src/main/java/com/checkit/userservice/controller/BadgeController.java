@@ -1,10 +1,7 @@
 package com.checkit.userservice.controller;
 
 import com.checkit.common.dto.ApiResponse;
-import com.checkit.userservice.dto.BadgeAdminReq;
-import com.checkit.userservice.dto.BadgeAdminRes;
-import com.checkit.userservice.dto.BadgeDeleteRes;
-import com.checkit.userservice.dto.UserBadgeRes;
+import com.checkit.userservice.dto.*;
 import com.checkit.userservice.service.BadgeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -77,6 +74,23 @@ public class BadgeController {
             @RequestHeader("X-User-Id") String userId) {
 
         UserBadgeRes response = badgeService.checkAndGrantBadge(UUID.fromString(userId));
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/my-badges")
+    public ApiResponse<MyBadgeListRes> getMyBadges(
+            @RequestHeader("X-User-Id") String userId) {
+
+        MyBadgeListRes response = badgeService.getMyBadges(UUID.fromString(userId));
+        return ApiResponse.success(response);
+    }
+
+    @PatchMapping("/my-badges/{badgeUserId}/equip")
+    public ApiResponse<MyBadgeListRes.MyBadgeItemRes> equipBadge(
+            @PathVariable("badgeUserId") Long badgeUserId,
+            @RequestHeader("X-User-Id") String userId) {
+
+        MyBadgeListRes.MyBadgeItemRes response = badgeService.equipBadge(UUID.fromString(userId), badgeUserId);
         return ApiResponse.success(response);
     }
 }
