@@ -8,7 +8,9 @@ import lombok.experimental.SuperBuilder;
 import java.util.UUID;
 
 @Entity
-@Table(name = "badge_user")
+@Table(name = "badge_user", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "badge_id"})
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

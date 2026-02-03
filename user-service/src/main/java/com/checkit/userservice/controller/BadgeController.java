@@ -4,6 +4,7 @@ import com.checkit.common.dto.ApiResponse;
 import com.checkit.userservice.dto.BadgeAdminReq;
 import com.checkit.userservice.dto.BadgeAdminRes;
 import com.checkit.userservice.dto.BadgeDeleteRes;
+import com.checkit.userservice.dto.UserBadgeRes;
 import com.checkit.userservice.service.BadgeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -69,5 +70,13 @@ public class BadgeController {
         if (!"ADMIN".equals(role)) {
             throw new RuntimeException("관리자 권한이 필요합니다.");
         }
+    }
+
+    @PostMapping("/check")
+    public ApiResponse<UserBadgeRes> checkMyBadge(
+            @RequestHeader("X-User-Id") String userId) {
+
+        UserBadgeRes response = badgeService.checkAndGrantBadge(UUID.fromString(userId));
+        return ApiResponse.success(response);
     }
 }

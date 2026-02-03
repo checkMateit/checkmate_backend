@@ -3,13 +3,17 @@ package com.checkit.userservice.service;
 import com.checkit.userservice.dto.BadgeAdminReq;
 import com.checkit.userservice.dto.BadgeAdminRes;
 import com.checkit.userservice.dto.BadgeDeleteRes;
+import com.checkit.userservice.dto.UserBadgeRes;
 import com.checkit.userservice.entity.BadgeEntity;
+import com.checkit.userservice.entity.UserBadgeEntity;
 import com.checkit.userservice.repository.BadgeRepository;
+import com.checkit.userservice.repository.UserBadgeRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -18,6 +22,7 @@ import java.util.stream.Collectors;
 public class BadgeService {
 
     private final BadgeRepository badgeRepository;
+    private final UserBadgeRepository userBadgeRepository;
 
     @Transactional
     public BadgeAdminRes createBadge(UUID userId, BadgeAdminReq request) {
@@ -72,5 +77,44 @@ public class BadgeService {
         badge.softDelete(userId);
 
         return BadgeDeleteRes.from(badge);
+    }
+
+    @Transactional
+    public UserBadgeRes checkAndGrantBadge(UUID userId) {
+        // 임시 하드코딩 카운트
+        int certCount = 30;
+
+        Long targetBadgeId = determineBadgeIdByCount(certCount);
+        if (targetBadgeId == null) return null;
+
+        Optional<UserBadgeEntity> existingBadge = userBadgeRepository.findByUserIdAndBadgeId(userId, targetBadgeId);
+        if (existingBadge.isPresent()) {
+            return UserBadgeRes.from(existingBadge.get());
+        }
+
+        BadgeEntity badge = badgeRepository.findById(targetBadgeId)
+                .orElseThrow(() -> new RuntimeException("뱃지를 찾을 수 없습니다."));
+
+        UserBadgeEntity userBadge = UserBadgeEntity.builder()
+                .userId(userId)
+                .badgeId(badge.getBadgeId())
+                .name(badge.getName())
+                .isEquipped(false)
+                .build();
+
+        userBadge.setCreator(userId);
+        UserBadgeEntity saved = userBadgeRepository.save(userBadge);
+
+        return UserBadgeRes.from(saved);
+    }
+
+    private Long determineBadgeIdByCount(int count) {
+        return switch (count) {
+            case 7 -> 1L;
+            case 14 -> 2L;
+            case 21 -> 3L;
+            case 30 -> 4L;
+            default -> null;
+        };
     }
 }
