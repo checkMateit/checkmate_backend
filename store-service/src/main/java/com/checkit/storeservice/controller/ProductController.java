@@ -3,6 +3,7 @@ package com.checkit.storeservice.controller;
 import com.checkit.common.dto.ApiResponse;
 import com.checkit.storeservice.dto.*;
 import com.checkit.storeservice.service.ProductService;
+import com.checkit.storeservice.service.UserItemService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+    private final UserItemService userItemService;
 
     @PostMapping
     public ApiResponse<ProductCreateRes> createProduct(
@@ -73,6 +75,21 @@ public class ProductController {
 
         checkAdminRole(role); // 아까 만든 관리자 체크 메서드
         return ApiResponse.success(productService.getAllProducts());
+    }
+
+    @PostMapping("/{productId}/purchase")
+    public ApiResponse<ProductPurchaseRes> purchaseProduct(
+            @PathVariable("productId") Long productId,
+            @RequestHeader("X-User-Id") UUID userId) {
+        return ApiResponse.success(userItemService.purchaseProduct(productId, userId));
+    }
+
+    @GetMapping("/items")
+    public ApiResponse<UserInventoryRes> getMyInventory(
+            @RequestHeader("X-User-Id") UUID userId) {
+
+        List<UserItemRes> inventory = userItemService.getMyInventory(userId);
+        return ApiResponse.success(UserInventoryRes.from(inventory));
     }
 
     private void checkAdminRole(String role) {
