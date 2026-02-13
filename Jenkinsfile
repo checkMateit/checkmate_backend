@@ -15,11 +15,16 @@ spec:
     env:
     - name: DOCKER_HOST
       value: tcp://localhost:2375
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
 
   - name: dind
     image: docker:27-dind
     securityContext:
       privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
     args:
     - --host=tcp://0.0.0.0:2375
     - --host=unix:///var/run/docker.sock
@@ -34,6 +39,9 @@ spec:
   }
 
   stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
 
     stage('Docker test') {
       steps {
@@ -42,23 +50,10 @@ spec:
       }
     }
 
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
-    }
-
     stage('Detect changed services') {
       steps {
         script {
-          def allServices = [
-            "gateway-service",
-            "user-service",
-            "community-service",
-            "store-service",
-            "study-service",
-            "eureka-service"
-          ]
+          def allServices = ["gateway-service","user-service","community-service","store-service","study-service","eureka-service"]
 
           def hasPrevCommit = (sh(script: 'git rev-parse --verify HEAD~1 >/dev/null 2>&1', returnStatus: true) == 0)
 
@@ -73,18 +68,10 @@ spec:
             def changed = []
 
             for (svc in allServices) {
-              if (lines.any { it.startsWith("${svc}/") }) {
-                changed << svc
-              }
+              if (lines.any { it.startsWith("${svc}/") }) changed << svc
             }
 
-            if (changed.isEmpty()) {
-              echo "No service changes detected. Building ALL services (bootstrap build)."
-              env.CHANGED_SERVICES = allServices.join(" ")
-            } else {
-              echo "Changed services: ${changed}"
-              env.CHANGED_SERVICES = changed.join(" ")
-            }
+            env.CHANGED_SERVICES = (changed.isEmpty() ? allServices : changed).join(" ")
           }
         }
       }
@@ -92,14 +79,8 @@ spec:
 
     stage('Login to GHCR') {
       steps {
-        withCredentials([usernamePassword(
-          credentialsId: 'github-credentials',
-          usernameVariable: 'GITHUB_USER',
-          passwordVariable: 'GITHUB_TOKEN'
-        )]) {
-          sh '''
-            echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin
-          '''
+        withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_TOKEN')]) {
+          sh 'echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USER --password-stdin'
         }
       }
     }
@@ -108,10 +89,8 @@ spec:
       steps {
         script {
           def services = env.CHANGED_SERVICES.split("\\s+")
-
           for (svc in services) {
             def imageName = "${REGISTRY}/checkmate-${svc.replace('-service','')}:${IMAGE_TAG}"
-
             sh """
               echo "=== Building ${svc} -> ${imageName} ==="
               docker build --build-arg SERVICE=${svc} -t ${imageName} .
@@ -121,19 +100,9 @@ spec:
         }
       }
     }
-
-    stage('Done') {
-      steps {
-        echo "Build/Push done. ArgoCD Image Updater will update tags (write-back) if configured."
-      }
-    }
   }
 
   post {
-    always {
-      sh 'docker image prune -f || true'
-    }
-    success { echo "Pipeline SUCCESS" }
-    failure { echo "Pipeline FAILED" }
+    always { sh 'docker image prune -f || true' }
   }
 }
