@@ -45,8 +45,18 @@ spec:
 
     stage('Docker test') {
       steps {
-        sh 'docker version'
-        sh 'docker info'
+        sh '''
+          echo "Waiting for dind..."
+          for i in $(seq 1 60); do
+            if docker info >/dev/null 2>&1; then
+              echo "Docker daemon is ready"
+              break
+            fi
+            sleep 2
+          done
+          docker version
+          docker info
+        '''
       }
     }
 
