@@ -33,7 +33,7 @@ spec:
   }
 
   environment {
-    ORG = "checkMateit"
+    ORG = "checkmateit"
     REGISTRY = "ghcr.io/${ORG}"
     IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
