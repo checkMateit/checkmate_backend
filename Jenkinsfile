@@ -17,7 +17,6 @@ pipeline {
     stage('Detect changed services') {
       steps {
         script {
-          // 모노레포 서비스 디렉토리 목록(필요하면 추가/수정)
           def allServices = [
             "gateway-service",
             "user-service",
@@ -27,9 +26,8 @@ pipeline {
             "eureka-service"
           ]
 
-          // 멀티브랜치 첫 빌드/이전 커밋 없을 때 대비
-          // HEAD~1이 없으면 전체 빌드
-          def hasPrevCommit = (sh(script: "git rev-parse --verify HEAD~1 >/dev/null 2>&1; echo $?", returnStdout: true).trim() == "0")
+          // HEAD~1 존재 여부를 returnStatus 로 체크 (0이면 존재)
+          def hasPrevCommit = (sh(script: 'git rev-parse --verify HEAD~1 >/dev/null 2>&1', returnStatus: true) == 0)
 
           if (!hasPrevCommit) {
             echo "No previous commit detected (first build). Building ALL services."
@@ -40,15 +38,15 @@ pipeline {
             echo "Changed files:\n${changedFiles}"
 
             def changed = []
+            def lines = changedFiles ? changedFiles.readLines() : []
+
             for (svc in allServices) {
-              // 변경 파일 중 svc 디렉토리 하위가 하나라도 있으면 포함
-              if (changedFiles.readLines().any { it.startsWith("${svc}/") }) {
+              if (lines.any { it.startsWith("${svc}/") }) {
                 changed << svc
               }
             }
 
             if (changed.isEmpty()) {
-              // 핵심: 변경 서비스가 없으면 전체 빌드
               echo "No service changes detected. Building ALL services (bootstrap build)."
               env.CHANGED_SERVICES = allServices.join(" ")
               env.BUILD_ALL = "true"
