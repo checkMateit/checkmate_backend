@@ -1,13 +1,47 @@
 pipeline {
-  agent any
+  agent {
+    kubernetes {
+      label 'docker'
+      defaultContainer 'docker'
+      yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: docker
+    image: docker:27-cli
+    command: ["cat"]
+    tty: true
+    env:
+    - name: DOCKER_HOST
+      value: tcp://localhost:2375
+
+  - name: dind
+    image: docker:27-dind
+    securityContext:
+      privileged: true
+    args:
+    - --host=tcp://0.0.0.0:2375
+    - --host=unix:///var/run/docker.sock
+"""
+    }
+  }
 
   environment {
-    ORG = "checkMateit"                 // GitHub org
-    REGISTRY = "ghcr.io/${ORG}"         // GHCR org registry
-    IMAGE_TAG = "${env.BUILD_NUMBER}"   // 태그 전략 (원하면 git sha로 바꿔도 됨)
+    ORG = "checkMateit"
+    REGISTRY = "ghcr.io/${ORG}"
+    IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
 
   stages {
+
+    stage('Docker test') {
+      steps {
+        sh 'docker version'
+        sh 'docker info'
+      }
+    }
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -26,19 +60,17 @@ pipeline {
             "eureka-service"
           ]
 
-          // HEAD~1 존재 여부를 returnStatus 로 체크 (0이면 존재)
           def hasPrevCommit = (sh(script: 'git rev-parse --verify HEAD~1 >/dev/null 2>&1', returnStatus: true) == 0)
 
           if (!hasPrevCommit) {
             echo "No previous commit detected (first build). Building ALL services."
             env.CHANGED_SERVICES = allServices.join(" ")
-            env.BUILD_ALL = "true"
           } else {
             def changedFiles = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
             echo "Changed files:\n${changedFiles}"
 
-            def changed = []
             def lines = changedFiles ? changedFiles.readLines() : []
+            def changed = []
 
             for (svc in allServices) {
               if (lines.any { it.startsWith("${svc}/") }) {
@@ -49,11 +81,9 @@ pipeline {
             if (changed.isEmpty()) {
               echo "No service changes detected. Building ALL services (bootstrap build)."
               env.CHANGED_SERVICES = allServices.join(" ")
-              env.BUILD_ALL = "true"
             } else {
               echo "Changed services: ${changed}"
               env.CHANGED_SERVICES = changed.join(" ")
-              env.BUILD_ALL = "false"
             }
           }
         }
@@ -63,7 +93,7 @@ pipeline {
     stage('Login to GHCR') {
       steps {
         withCredentials([usernamePassword(
-          credentialsId: 'ghcr-credentials',
+          credentialsId: 'github-credentials',
           usernameVariable: 'GITHUB_USER',
           passwordVariable: 'GITHUB_TOKEN'
         )]) {
@@ -101,14 +131,9 @@ pipeline {
 
   post {
     always {
-      // 필요시 로컬 디스크 정리(에이전트가 노드에 남는 환경이면 유용)
       sh 'docker image prune -f || true'
     }
-    success {
-      echo "Pipeline SUCCESS"
-    }
-    failure {
-      echo "Pipeline FAILED"
-    }
+    success { echo "Pipeline SUCCESS" }
+    failure { echo "Pipeline FAILED" }
   }
 }
