@@ -33,6 +33,7 @@ spec:
   }
 
   environment {
+    DISCORD_WEBHOOK = credentials('discord-webhook')
     ORG = "checkmateit"
     REGISTRY = "ghcr.io/${ORG}"
     IMAGE_TAG = "${env.BUILD_NUMBER}"
@@ -113,6 +114,37 @@ spec:
   }
 
   post {
-    always { sh 'docker image prune -f || true' }
+    success {
+    withCredentials([string(credentialsId: 'discord-webhook', variable: 'DISCORD_WEBHOOK')])
+       script{ try { discordSend(
+                             title: "${env.JOB_NAME} #${env.BUILD_NUMBER} 성공",
+                             description: """\
+                       브랜치: ${env.BRANCH_NAME ?: 'N/A'}
+                       결과: ${currentBuild.currentResult}
+                       실행 시간: ${(currentBuild.duration ?: 0) / 1000}s
+                       """,
+                             link: env.BUILD_URL,
+                             result: currentBuild.currentResult,
+                             webhookURL: env.DISCORD_WEBHOOK
+                           )} catch (e) { echo "discordSend failed: ${e}" } }
+    }
+
+    failure { script{ try {
+      discordSend(
+        title: "${env.JOB_NAME} #${env.BUILD_NUMBER} 실패",
+        description: """\
+  브랜치: ${env.BRANCH_NAME ?: 'N/A'}
+  결과: ${currentBuild.currentResult}
+  실행 시간: ${(currentBuild.duration ?: 0) / 1000}s
+  """,
+        link: env.BUILD_URL,
+        result: currentBuild.currentResult,
+        webhookURL: env.DISCORD_WEBHOOK
+      )} catch (e)  { echo "discordSend failed: ${e}" } }
+    }
+
+    always {
+      sh 'docker image prune -f || true'
+    }
   }
 }
