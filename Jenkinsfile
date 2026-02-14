@@ -126,27 +126,31 @@ spec:
     }
   }
 
-  post {
-    success {
-      script {
-        try {
-          discordSend(
-            title: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            description: "OK\n${env.BUILD_URL}",
-            webhookURL: env.DISCORD_WEBHOOK
-          )
-        } catch (e) { echo "discordSend failed: ${e}" }
+    post {
+      success {
+        script {
+          try {
+            discordSend(
+              title: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+              description: "OK\n${env.BUILD_URL}",
+              webhookURL: env.DISCORD_WEBHOOK
+            )
+          } catch (e) { echo "discordSend failed: ${e}" }
+        }
       }
-    }
-    failure {
-      script {
-        try {
-          discordSend(
-            title: "FAIL: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            description: "FAIL\n${env.BUILD_URL}",
-            webhookURL: env.DISCORD_WEBHOOK
-          )
-        } catch (e) { echo "discordSend failed: ${e}" }
+      failure {
+        script {
+          try {
+            discordSend(
+              title: "FAIL: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+              description: "FAIL\n${env.BUILD_URL}",
+              webhookURL: env.DISCORD_WEBHOOK
+            )
+          } catch (e) { echo "discordSend failed: ${e}" }
+        }
+      }
+      always {
+        sh 'docker image prune -f || true'
       }
     }
   }
