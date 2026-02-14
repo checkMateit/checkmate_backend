@@ -39,17 +39,12 @@ spec:
     IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
 
-  stages {
-    stage('Net check') {
+    stage('Build container net check') {
       steps {
         sh '''
-          apk add --no-cache curl ca-certificates >/dev/null
-          echo "== repo.maven.apache.org =="
-          curl -I https://repo.maven.apache.org/maven2/ -m 10 || true
-          echo "== plugins.gradle.org =="
-          curl -I https://plugins.gradle.org/m2/ -m 10 || true
-          echo "== repo.spring.io =="
-          curl -I https://repo.spring.io/release/ -m 10 || true
+          docker run --rm curlimages/curl:8.5.0 -I https://plugins.gradle.org/m2/ -m 10 || true
+          docker run --rm curlimages/curl:8.5.0 -I https://repo.maven.apache.org/maven2/ -m 10 || true
+          docker run --rm curlimages/curl:8.5.0 -I https://repo.spring.io/release/ -m 10 || true
         '''
       }
     }
