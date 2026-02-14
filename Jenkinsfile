@@ -40,6 +40,19 @@ spec:
   }
 
   stages {
+    stage('Net check') {
+      steps {
+        sh '''
+          apk add --no-cache curl ca-certificates >/dev/null
+          echo "== repo.maven.apache.org =="
+          curl -I https://repo.maven.apache.org/maven2/ -m 10 || true
+          echo "== plugins.gradle.org =="
+          curl -I https://plugins.gradle.org/m2/ -m 10 || true
+          echo "== repo.spring.io =="
+          curl -I https://repo.spring.io/release/ -m 10 || true
+        '''
+      }
+    }
     stage('Checkout') {
       steps { checkout scm }
     }
@@ -115,36 +128,25 @@ spec:
 
   post {
     success {
-    withCredentials([string(credentialsId: 'discord-webhook', variable: 'DISCORD_WEBHOOK')])
-       script{ try { discordSend(
-                             title: "${env.JOB_NAME} #${env.BUILD_NUMBER} 성공",
-                             description: """\
-                       브랜치: ${env.BRANCH_NAME ?: 'N/A'}
-                       결과: ${currentBuild.currentResult}
-                       실행 시간: ${(currentBuild.duration ?: 0) / 1000}s
-                       """,
-                             link: env.BUILD_URL,
-                             result: currentBuild.currentResult,
-                             webhookURL: env.DISCORD_WEBHOOK
-                           )} catch (e) { echo "discordSend failed: ${e}" } }
+      script {
+        try {
+          discordSend(
+            title: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            description: "OK\n${env.BUILD_URL}",
+            webhookURL: env.DISCORD_WEBHOOK
+          )
+        } catch (e) { echo "discordSend failed: ${e}" }
+      }
     }
-
-    failure { script{ try {
-      discordSend(
-        title: "${env.JOB_NAME} #${env.BUILD_NUMBER} 실패",
-        description: """\
-  브랜치: ${env.BRANCH_NAME ?: 'N/A'}
-  결과: ${currentBuild.currentResult}
-  실행 시간: ${(currentBuild.duration ?: 0) / 1000}s
-  """,
-        link: env.BUILD_URL,
-        result: currentBuild.currentResult,
-        webhookURL: env.DISCORD_WEBHOOK
-      )} catch (e)  { echo "discordSend failed: ${e}" } }
-    }
-
-    always {
-      sh 'docker image prune -f || true'
+    failure {
+      script {
+        try {
+          discordSend(
+            title: "FAIL: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            description: "FAIL\n${env.BUILD_URL}",
+            webhookURL: env.DISCORD_WEBHOOK
+          )
+        } catch (e) { echo "discordSend failed: ${e}" }
+      }
     }
   }
-}
