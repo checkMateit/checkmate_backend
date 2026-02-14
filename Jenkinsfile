@@ -65,8 +65,8 @@ spec:
       steps {
         sh '''
           set +e
-          docker run --rm curlimages/curl:8.5.0 -I https://repo.maven.apache.org/maven2/ -m 10 || true
-          docker run --rm curlimages/curl:8.5.0 -4 -I https://repo.maven.apache.org/maven2/ -m 10 || true
+          docker run --rm --network host curlimages/curl:8.5.0 -I https://repo.maven.apache.org/maven2/ -m 10
+          echo "curl exit code=$?"
           exit 0
         '''
       }
@@ -114,13 +114,14 @@ spec:
             def imageName = "${REGISTRY}/checkmate-${svc.replace('-service','')}:${IMAGE_TAG}"
             sh """
               echo "=== Building ${svc} -> ${imageName} ==="
-              docker build --build-arg SERVICE=${svc} -t ${imageName} .
+              docker build --network=host --build-arg SERVICE=${svc} -t ${imageName} .
               docker push ${imageName}
             """
           }
         }
       }
     }
+
   }
 
     post {
@@ -136,7 +137,9 @@ spec:
         }
       }
       failure {
+        sh 'echo "keeping pod for debug"; sleep 600'
         script {
+
           try {
             discordSend(
               title: "FAIL: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
