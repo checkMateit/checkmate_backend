@@ -63,12 +63,19 @@ spec:
     }
     stage('Build container net check') {
       steps {
-        sh '''
-          set +e
-          docker run --rm curlimages/curl:8.5.0 -I https://repo.maven.apache.org/maven2/ -m 10 || true
-          docker run --rm curlimages/curl:8.5.0 -4 -I https://repo.maven.apache.org/maven2/ -m 10 || true
-          exit 0
-        '''
+        withEnv(["http_proxy=${env.HTTP_PROXY}",
+                 "https_proxy=${env.HTTPS_PROXY}",
+                 "no_proxy=${env.NO_PROXY}"]) {
+
+          sh """
+          docker build \
+            --build-arg http_proxy=$http_proxy \
+            --build-arg https_proxy=$https_proxy \
+            --build-arg no_proxy=$no_proxy \
+            --build-arg SERVICE=gateway-service \
+            -t ghcr.io/checkmateit/checkmate-gateway:${BUILD_NUMBER} .
+          """
+        }
       }
     }
     stage('Detect changed services') {

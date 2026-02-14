@@ -1,7 +1,10 @@
 # 기존: FROM gradle:8.8-jdk17 ...
 FROM gradle:8.8-jdk17 AS builder
 WORKDIR /workspace
-
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+ENV http_proxy=${http_proxy} https_proxy=${https_proxy} no_proxy=${no_proxy}
 # (선택) 캐시 효율 위해 먼저 build 설정만 복사
 COPY settings.gradle build.gradle ./
 
