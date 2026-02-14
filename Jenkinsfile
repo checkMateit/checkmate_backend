@@ -40,15 +40,7 @@ spec:
   }
 
   stages {
-    stage('Build container net check') {
-          steps {
-            sh '''
-              docker run --rm curlimages/curl:8.5.0 -I https://plugins.gradle.org/m2/ -m 10 || true
-              docker run --rm curlimages/curl:8.5.0 -I https://repo.maven.apache.org/maven2/ -m 10 || true
-              docker run --rm curlimages/curl:8.5.0 -I https://repo.spring.io/release/ -m 10 || true
-            '''
-          }
-        }
+
     stage('Checkout') {
       steps { checkout scm }
     }
@@ -69,7 +61,18 @@ spec:
         '''
       }
     }
-
+    stage('Build container net check') {
+      steps {
+        sh '''
+          set +e
+          docker run --rm curlimages/curl:8.5.0 -I https://services.gradle.org/distributions/gradle-8.8-bin.zip -m 20 || true
+          docker run --rm curlimages/curl:8.5.0 -I https://plugins.gradle.org/m2/ -m 20 || true
+          docker run --rm curlimages/curl:8.5.0 -I https://repo.maven.apache.org/maven2/ -m 20 || true
+          docker run --rm curlimages/curl:8.5.0 -I https://repo.spring.io/release/ -m 20 || true
+          exit 0
+        '''
+      }
+    }
     stage('Detect changed services') {
       steps {
         script {
