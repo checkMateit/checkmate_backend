@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -25,8 +27,10 @@ public class UserItemEntity extends AuditBaseEntity {
     @Column(nullable = false)
     private UUID userId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
     @Column(nullable = false)
-    private Long productId;
+    private ProductEntity productId;
 
     @Column(nullable = false)
     private int quantity;
@@ -41,5 +45,9 @@ public class UserItemEntity extends AuditBaseEntity {
             throw new IllegalArgumentException("수량은 0보다 작을 수 없습니다.");
         }
         this.quantity = quantity;
+    }
+
+    public ProductEntity getProduct() {
+        return this.productId;
     }
 }

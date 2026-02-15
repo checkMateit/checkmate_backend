@@ -73,7 +73,7 @@ public class ProductController {
     public ApiResponse<List<ProductRes>> getAllProducts(
             @RequestHeader("X-User-Role") String role) {
 
-        checkAdminRole(role); // 아까 만든 관리자 체크 메서드
+        checkAdminRole(role);
         return ApiResponse.success(productService.getAllProducts());
     }
 
@@ -90,6 +90,25 @@ public class ProductController {
 
         List<UserItemRes> inventory = userItemService.getMyInventory(userId);
         return ApiResponse.success(UserInventoryRes.from(inventory));
+    }
+
+    @PatchMapping("/items/{productItemId}/delete")
+    public ApiResponse<String> deleteUserItem(
+            @PathVariable("productItemId") Long productItemId,
+            @RequestHeader("X-User-Id") String userId) {
+
+        userItemService.deleteUserItem(UUID.fromString(userId), productItemId);
+
+        return ApiResponse.success("아이템이 인벤토리에서 제거되었습니다.");
+    }
+
+    @PostMapping("/items/use-auto")
+    public ApiResponse<String> useItemAuto(
+            @RequestParam("userId") UUID userId,
+            @RequestParam("failureType") String failureType) {
+
+        userItemService.useItemAuto(userId, failureType);
+        return ApiResponse.success("면제권이 자동으로 사용되었습니다.");
     }
 
     private void checkAdminRole(String role) {
