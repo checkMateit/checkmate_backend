@@ -27,13 +27,31 @@ public class OAuthAttributes {
         this.providerUserId = providerUserId;
     }
 
-    //구글에서 오는 데이터 변환 메스드
+    // 서비스(google, github)에 따라 분기 처리
     public static OAuthAttributes of(String registrationId, String userNameAttribute, Map<String, Object> attributes) {
+        if ("github".equals(registrationId)) {
+            return ofGithub("id", attributes); // 깃허브는 고유키가 id
+        }
+        return ofGoogle(userNameAttribute, attributes);
+    }
+
+    private static OAuthAttributes ofGoogle(String userNameAttribute, Map<String, Object> attributes) {
         return OAuthAttributes.builder()
                 .name((String) attributes.get("name"))
                 .email((String) attributes.get("email"))
                 .picture((String) attributes.get("picture"))
                 .providerUserId((String) attributes.get("sub"))
+                .attributes(attributes)
+                .nameAttributeKey(userNameAttribute)
+                .build();
+    }
+
+    private static OAuthAttributes ofGithub(String userNameAttribute, Map<String, Object> attributes) {
+        return OAuthAttributes.builder()
+                .name((String) attributes.get("login")) // 깃허브는 login이 닉네임
+                .email((String) attributes.get("email"))
+                .picture((String) attributes.get("avatar_url")) // 깃허브는 avatar_url이 프사
+                .providerUserId(String.valueOf(attributes.get("id"))) // id가 숫자형이므로 String 변환
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttribute)
                 .build();

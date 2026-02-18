@@ -13,6 +13,10 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -57,24 +61,44 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
         return socialRepository.findByProviderAndProviderUserId(provider, attributes.getProviderUserId())
                 .map(social -> {
                     UserEntity user = social.getUser();
-
-                    if (user.isDeleted()) {
-                        throw new OAuth2AuthenticationException("탈퇴 처리된 계정입니다. 고객센터에 문의하세요");
-                    }
-
-                    if (!user.isActive()) {
-                        user.activate(user.getUserId());
-                    }
-
+                    if (user.isDeleted()) throw new OAuth2AuthenticationException("탈퇴 처리된 계정입니다.");
+                    if (!user.isActive()) user.activate(user.getUserId());
                     return user;
                 })
                 .orElseGet(() -> {
+                    UserEntity existingUser = userRepository.findByEmail(attributes.getEmail())
+                            .orElse(null);
+
+                    if (existingUser != null) {
+                        socialRepository.save(SocialEntity.builder()
+                                .user(existingUser)
+                                .provider(provider)
+                                .providerUserId(attributes.getProviderUserId())
+                                .email(attributes.getEmail())
+                                .createdBy(existingUser.getUserId())
+                                .build());
+                        return existingUser;
+                    }
+
+                    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
+
+                        OAuth2User loginUser = (OAuth2User) auth.getPrincipal();
+                        UUID currentUserId = (UUID) loginUser.getAttributes().get("userId");
+                        UserEntity currentUser = userRepository.findById(currentUserId).orElseThrow();
+
+                        socialRepository.save(SocialEntity.builder()
+                                .user(currentUser)
+                                .provider(provider)
+                                .providerUserId(attributes.getProviderUserId())
+                                .email(attributes.getEmail())
+                                .createdBy(currentUser.getUserId())
+                                .build());
+                        return currentUser;
+                    }
+
                     UUID newUserId = UUID.randomUUID();
-
-                    UserEntity userToSave = attributes.toEntity(newUserId);
-
-                    UserEntity newUser = userRepository.save(userToSave);
-
+                    UserEntity newUser = userRepository.save(attributes.toEntity(newUserId));
                     socialRepository.save(SocialEntity.builder()
                             .user(newUser)
                             .provider(provider)
@@ -82,7 +106,6 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
                             .email(attributes.getEmail())
                             .createdBy(newUser.getUserId())
                             .build());
-
                     return newUser;
                 });
     }

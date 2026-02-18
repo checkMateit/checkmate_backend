@@ -151,6 +151,40 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public List<SocialAccountRes> getSocialAccounts(UUID userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        return socialRepository.findAllByUser(user).stream()
+                .map(social -> SocialAccountRes.builder()
+                        .provider(social.getProvider())
+                        .email(social.getEmail())
+                        .build())
+                .toList();
+    }
+
+    @Transactional
+    public void unlinkSocial(UUID userId, String provider) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+
+        List<SocialEntity> socialAccounts = socialRepository.findAllByUser(user).stream()
+                .filter(s -> !s.isDeleted())
+                .toList();
+
+        if (socialAccounts.size() <= 1) {
+            throw new IllegalStateException("최소 하나 이상의 소셜 계정이 연동되어 있어야 합니다.");
+        }
+
+        SocialEntity targetSocial = socialAccounts.stream()
+                .filter(s -> s.getProvider().equalsIgnoreCase(provider))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("연동되지 않은 소셜 계정입니다."));
+
+        targetSocial.softDelete(userId);
+    }
+
+    @Transactional(readOnly = true)
     public FavoriteCategoryRes getFavoriteCategories(UUID userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
