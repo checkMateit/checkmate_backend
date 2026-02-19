@@ -17,5 +17,6 @@ WORKDIR /app
 ARG SERVICE
 COPY --from=builder /workspace/${SERVICE}/build/libs/*.jar app.jar
 
+
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","app.jar"]
