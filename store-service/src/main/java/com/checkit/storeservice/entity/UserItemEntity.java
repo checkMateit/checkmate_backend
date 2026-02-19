@@ -29,7 +29,6 @@ public class UserItemEntity extends AuditBaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
-    @Column(nullable = false)
     private ProductEntity productId;
 
     @Column(nullable = false)

@@ -17,7 +17,7 @@ public interface UserItemRepository extends JpaRepository<UserItemEntity, Long> 
     List<UserItemEntity> findAllByUserIdAndDeletedAtIsNull(UUID userId);
 
     @Query("SELECT ui FROM UserItemEntity ui " +
-            "JOIN FETCH ui.product p " +
+            "JOIN FETCH ui.productId p " +
             "WHERE ui.userId = :userId " +
             "AND p.category IN :categories " +
             "AND ui.deletedAt IS NULL " +

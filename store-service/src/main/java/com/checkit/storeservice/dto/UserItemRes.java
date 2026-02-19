@@ -18,7 +18,7 @@ public class UserItemRes {
     public static UserItemRes of(UserItemEntity item, ProductEntity product) {
         return UserItemRes.builder()
                 .productItemId(item.getProductItemId())
-                .productId(item.getProductId())
+                .productId(product.getProductId())
                 .name(product.getName())
                 .quantity(item.getQuantity())
                 .build();
