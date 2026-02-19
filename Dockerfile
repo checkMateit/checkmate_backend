@@ -15,7 +15,7 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 ARG SERVICE
-COPY --from=builder /workspace/${SERVICE}/build/libs/*.jar app.jar
+COPY --from=builder /workspace/${SERVICE}/build/libs/*-SNAPSHOT.jar /app/app.jar
 
 
 EXPOSE 8080
