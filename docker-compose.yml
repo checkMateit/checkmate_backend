@@ -1,6 +1,16 @@
 version: '3.8'
 
 services:
+  eureka-service:
+    build:
+      context: .
+      dockerfile: eureka-service/Dockerfile
+    container_name: eureka-service
+    ports:
+      - "8761:8761"
+    networks:
+      - checkmate-network
+
   user-service:
     build:
       context: .
@@ -44,3 +54,7 @@ services:
 
 volumes:
   redis_data:
+
+networks:
+  checkmate-network:
+    driver: bridge
