@@ -1,7 +1,9 @@
 package com.checkit.userservice.entity;
 
+import com.checkit.common.entity.AuditBaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.util.UUID;
 import java.time.LocalDateTime;
@@ -9,11 +11,13 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@SuperBuilder
 @Table(name = "social_account",
         uniqueConstraints = {
         @UniqueConstraint(columnNames = {"provider", "provider_user_id"})
 })
-public class SocialEntity {
+public class SocialEntity extends AuditBaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -32,15 +36,7 @@ public class SocialEntity {
 
     private String email;
 
+    @Builder.Default
     @Column(name = "connected_at", nullable = false)
-    private LocalDateTime connectedAt;
-
-    @Builder
-    public SocialEntity(UserEntity user, String provider, String providerUserId, String email) {
-        this.user = user;
-        this.provider = provider;
-        this.providerUserId = providerUserId;
-        this.email = email;
-        this.connectedAt = LocalDateTime.now();
-    }
+    private LocalDateTime connectedAt = LocalDateTime.now();
 }

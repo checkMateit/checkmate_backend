@@ -1,17 +1,23 @@
 package com.checkit.userservice.entity;
 
+import com.checkit.common.entity.AuditBaseEntity;
+import com.checkit.common.entity.CategoryType;
 import com.checkit.common.entity.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@SuperBuilder
 @Table(name = "users")
-public class UserEntity {
+public class UserEntity extends AuditBaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -36,27 +42,31 @@ public class UserEntity {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role = UserRole.USER;
 
-    @Builder
-    public UserEntity(String email, String name, String nickname, String profileImageUrl) {
-        this.email = email;
-        this.name = name;
-        this.nickname = nickname;
-        this.profileImageUrl = profileImageUrl;
-        this.role = (role != null) ? role : UserRole.USER;
-        this.isActive = true;
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fav_category_1", length = 10)
+    private CategoryType favCategory1;
 
-    public void updateProfile(String nickname, LocalDate birthdate, String gender, String phoneNumber) {
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fav_category_2", length = 10)
+    private CategoryType favCategory2;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fav_category_3", length = 10)
+    private CategoryType favCategory3;
+
+    public void updateProfile(String nickname, LocalDate birthdate, String gender, String phoneNumber, UUID actorId) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
         }
@@ -69,14 +79,31 @@ public class UserEntity {
         if (phoneNumber != null && !phoneNumber.isBlank()) {
             this.phoneNumber = phoneNumber;
         }
+
+        this.setUpdater(actorId);
     }
 
-    public void deactivate() {
+    public void deactivate(UUID actorId) {
         this.isActive = false;
+        this.setUpdater(actorId);
     }
 
-    public void activate() {
+    public void activate(UUID actorId) {
         this.isActive = true;
+        this.setUpdater(actorId);
+    }
+
+    public void withdraw(UUID actorId) {
+        this.isActive = false;
+        this.softDelete(actorId);
+    }
+
+    public void updateFavoriteCategories(List<CategoryType> categories, UUID actorId) {
+        this.favCategory1 = (categories.size() >= 1) ? categories.get(0) : null;
+        this.favCategory2 = (categories.size() >= 2) ? categories.get(1) : null;
+        this.favCategory3 = (categories.size() >= 3) ? categories.get(2) : null;
+
+        this.setUpdater(actorId);
     }
 
 }

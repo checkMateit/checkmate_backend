@@ -5,8 +5,11 @@ import com.checkit.userservice.dto.*;
 import com.checkit.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -43,7 +46,28 @@ public class UserController {
 
         return ApiResponse.success(response);
     }
+    @GetMapping("/me/social")
+    public ApiResponse<List<SocialAccountRes>> getMySocialAccounts(
+            @RequestHeader("X-User-Id") String userId) {
 
+        log.info("Get social accounts request for User: {}", userId);
+
+        UUID userUuid = UUID.fromString(userId);
+        List<SocialAccountRes> response = userService.getSocialAccounts(userUuid);
+
+        return ApiResponse.success(response);
+    }
+
+    @PatchMapping("/me/social/{provider}/unlink")
+    public ApiResponse<Void> unlinkSocial(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable String provider) {
+
+        log.info("Unlink social account request for User: {}, Provider: {}", userId, provider);
+        userService.unlinkSocial(UUID.fromString(userId), provider);
+
+        return ApiResponse.success(null);
+    }
     @PatchMapping("/me/deactivate")
     public ApiResponse<Void> deactivate(@RequestHeader("X-User-Id") String userId) {
         userService.deactivateUser(UUID.fromString(userId));
@@ -63,6 +87,35 @@ public class UserController {
         log.info("Checking nickname availability: {}", nickname);
 
         NickNameCheckRes response = userService.checkNicknameAvailability(nickname);
+
+        return ApiResponse.success(response);
+    }
+
+    @PatchMapping("/me/withdraw")
+    public ApiResponse<Void> withdraw(@RequestHeader("X-User-Id") String userId) {
+        log.info("Withdraw request for User: {}", userId);
+        userService.withdrawUser(UUID.fromString(userId));
+        return ApiResponse.success(null);
+    }
+
+    @PatchMapping("/me/favorite-categories")
+    public ApiResponse<FavoriteCategoryRes> updateFavoriteCategories(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody FavoriteCategoryReq request) {
+
+        log.info("Update favorite categories for User: {}", userId);
+
+        FavoriteCategoryRes response = userService.updateFavorites(UUID.fromString(userId), request);
+
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/me/favorite-categories")
+    public ApiResponse<FavoriteCategoryRes> getFavoriteCategories(
+            @RequestHeader("X-User-Id") String userId) {
+
+        log.info("Get favorite categories for User: {}", userId);
+        FavoriteCategoryRes response = userService.getFavoriteCategories(UUID.fromString(userId));
 
         return ApiResponse.success(response);
     }
