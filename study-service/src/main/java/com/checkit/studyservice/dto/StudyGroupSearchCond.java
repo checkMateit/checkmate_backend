@@ -42,7 +42,7 @@ public class StudyGroupSearchCond {
     /** 상세 필터: 무기한 여부 (true면 무기한 그룹만) */
     private Boolean isIndefinite;
 
-    /** 상세 필터: 참여방식 (PUBLIC, APPROVAL, INVITE_ONLY) */
+    /** 상세 필터: 참여방식 (PUBLIC, INVITE_ONLY) */
     private JoinType joinType;
 
     /** 페이징: 페이지 번호 (0부터) */

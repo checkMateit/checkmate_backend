@@ -2,6 +2,10 @@ package com.checkit.studyservice.service;
 
 import com.checkit.common.exception.BusinessException;
 import com.checkit.common.exception.CommonCode;
+import com.checkit.studyservice.dto.InvitationCreateReq;
+import com.checkit.studyservice.dto.InvitationCreateRes;
+import com.checkit.studyservice.dto.JoinByInviteReq;
+import com.checkit.studyservice.dto.JoinRes;
 import com.checkit.studyservice.dto.StudyGroupCardRes;
 import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
@@ -21,6 +25,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -46,7 +52,12 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     private final GroupVerificationMethodRepository methodRepository;
     private final StudyUserRepository studyUserRepository;
     private final StudyGroupSearchRepository studyGroupSearchRepository;
+    private final GroupInvitationRepository groupInvitationRepository;
     private final ObjectMapper objectMapper;
+
+    private static final String INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final int INVITE_CODE_LENGTH = 8;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     @Override
     public StudyGroupCreateRes createStudyGroup(UUID actor, StudyGroupCreateReq request) {
@@ -270,6 +281,143 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                         hashtagsByGroup.getOrDefault(g.getGroupId(), List.of())))
                 .toList();
         return new PageImpl<>(cards, pageable, groupPage.getTotalElements());
+    }
+
+    @Override
+    public JoinRes joinPublic(UUID actor, Long groupId) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (group.getJoinType() != JoinType.PUBLIC) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "공개 가입이 가능한 그룹이 아닙니다.");
+        }
+        if (group.getStatus() != GroupStatus.RECRUITING) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "모집 중인 그룹만 가입할 수 있습니다.");
+        }
+        if (group.getCurrentMembers() >= group.getMaxMembers()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "정원이 마감되었습니다.");
+        }
+        if (studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "이미 가입한 그룹입니다.");
+        }
+        StudyUser member = StudyUser.builder()
+                .userId(actor)
+                .studyId(groupId)
+                .studyId2(groupId)
+                .userId2(actor)
+                .role(StudyUserRole.Member)
+                .status(StudyUserStatus.ACTIVE)
+                .isStudyNotification(true)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        studyUserRepository.save(member);
+        group.setCurrentMembers(group.getCurrentMembers() + 1);
+        studyGroupRepository.save(group);
+        return JoinRes.builder()
+                .groupId(groupId)
+                .joinedAt(member.getJoinedAt())
+                .build();
+    }
+
+    @Override
+    public InvitationCreateRes createInvitation(UUID actor, Long groupId, InvitationCreateReq request) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!group.getOwnerUserId().equals(actor)) {
+            throw new BusinessException(CommonCode.FORBIDDEN);
+        }
+        if (group.getJoinType() != JoinType.INVITE_ONLY) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "초대 링크는 INVITE_ONLY 그룹에서만 생성할 수 있습니다.");
+        }
+        String inviteCode = generateInviteCode();
+        String inviteToken = UUID.randomUUID().toString().replace("-", "");
+        GroupInvitation inv = GroupInvitation.builder()
+                .groupId(groupId)
+                .inviteCode(inviteCode)
+                .inviteToken(inviteToken)
+                .expiresAt(request != null ? request.getExpiresAt() : null)
+                .maxUses(request != null ? request.getMaxUses() : null)
+                .usedCnt(0)
+                .build();
+        GroupInvitation saved = groupInvitationRepository.save(inv);
+        return InvitationCreateRes.builder()
+                .inviteId(saved.getInviteId())
+                .groupId(groupId)
+                .inviteCode(saved.getInviteCode())
+                .inviteToken(saved.getInviteToken())
+                .expiresAt(saved.getExpiresAt())
+                .maxUses(saved.getMaxUses())
+                .build();
+    }
+
+    @Override
+    public JoinRes joinByInvite(UUID actor, JoinByInviteReq request) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        GroupInvitation inv = groupInvitationRepository.findByInviteToken(request.getInviteToken().trim())
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "유효하지 않은 초대 링크입니다."));
+        if (inv.getRevokedAt() != null) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "이미 만료되거나 취소된 초대 링크입니다.");
+        }
+        if (inv.getExpiresAt() != null && Instant.now().isAfter(inv.getExpiresAt())) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "만료된 초대 링크입니다.");
+        }
+        if (inv.getMaxUses() != null && (inv.getUsedCnt() == null ? 0 : inv.getUsedCnt()) >= inv.getMaxUses()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "사용 횟수가 초과된 초대 링크입니다.");
+        }
+        StudyGroup group = studyGroupRepository.findById(inv.getGroupId())
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (group.getStatus() != GroupStatus.RECRUITING) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "모집이 종료된 그룹입니다.");
+        }
+        if (group.getCurrentMembers() >= group.getMaxMembers()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "정원이 마감되었습니다.");
+        }
+        if (studyUserRepository.existsByUserIdAndStudyId(actor, inv.getGroupId())) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "이미 가입한 그룹입니다.");
+        }
+        StudyUser member = StudyUser.builder()
+                .userId(actor)
+                .studyId(inv.getGroupId())
+                .studyId2(inv.getGroupId())
+                .userId2(actor)
+                .role(StudyUserRole.Member)
+                .status(StudyUserStatus.ACTIVE)
+                .isStudyNotification(true)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        studyUserRepository.save(member);
+        group.setCurrentMembers(group.getCurrentMembers() + 1);
+        studyGroupRepository.save(group);
+        inv.setUsedCnt(inv.getUsedCnt() == null ? 1 : inv.getUsedCnt() + 1);
+        groupInvitationRepository.save(inv);
+        return JoinRes.builder()
+                .groupId(inv.getGroupId())
+                .joinedAt(member.getJoinedAt())
+                .build();
+    }
+
+    private String generateInviteCode() {
+        StringBuilder sb = new StringBuilder(INVITE_CODE_LENGTH);
+        for (int i = 0; i < INVITE_CODE_LENGTH; i++) {
+            sb.append(INVITE_CODE_CHARS.charAt(RANDOM.nextInt(INVITE_CODE_CHARS.length())));
+        }
+        return sb.toString();
     }
 
     private StudyGroupCardRes toCardRes(StudyGroup g, List<GroupVerificationSchedule> groupSchedules,

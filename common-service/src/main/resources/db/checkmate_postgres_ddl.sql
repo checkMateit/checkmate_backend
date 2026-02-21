@@ -354,7 +354,7 @@ CREATE TABLE study_groups (
     CONSTRAINT chk_study_groups_status CHECK (status IN ('RECRUITING', 'CLOSED')),
     CONSTRAINT chk_study_groups_thumbnail_type CHECK (thumbnail_type IN ('UPLOAD', 'DEFAULT')),
     CONSTRAINT chk_study_groups_category CHECK (category IN ('WAKE', 'SEATED', 'COTE', 'LANG', 'CERT', 'ETC')),
-    CONSTRAINT chk_study_groups_join_type CHECK (join_type IN ('PUBLIC', 'APPROVAL', 'INVITE_ONLY')),
+    CONSTRAINT chk_study_groups_join_type CHECK (join_type IN ('PUBLIC', 'INVITE_ONLY')),
     CONSTRAINT pk_study_groups PRIMARY KEY (group_id)
 );
 
@@ -448,7 +448,7 @@ COMMENT ON COLUMN study_groups.owner_user_id IS '그룹장 ID';
 COMMENT ON COLUMN study_groups.thumbnail_type IS 'UPLOAD, DEFAULT';
 COMMENT ON COLUMN study_groups.thumbnail_url IS '업로드 썸네일 URL';
 COMMENT ON COLUMN study_groups.category IS 'WAKE / SEATED / COTE / LANG / CERT / ETC';
-COMMENT ON COLUMN study_groups.join_type IS 'PUBLIC / APPROVAL / INVITE_ONLY';
+COMMENT ON COLUMN study_groups.join_type IS 'PUBLIC / INVITE_ONLY';
 COMMENT ON COLUMN study_groups.duration_weeks IS 'n주 기간';
 COMMENT ON COLUMN group_verification_methods.group_id IS '고유 스터디 ID';
 COMMENT ON COLUMN group_verification_methods.method_code IS 'PHOTO / CHECKLIST / GPS / GITHUB';

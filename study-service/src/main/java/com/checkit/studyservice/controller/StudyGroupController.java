@@ -1,6 +1,10 @@
 package com.checkit.studyservice.controller;
 
 import com.checkit.common.dto.ApiResponse;
+import com.checkit.studyservice.dto.InvitationCreateReq;
+import com.checkit.studyservice.dto.InvitationCreateRes;
+import com.checkit.studyservice.dto.JoinByInviteReq;
+import com.checkit.studyservice.dto.JoinRes;
 import com.checkit.studyservice.dto.StudyGroupCardRes;
 import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
@@ -99,19 +103,55 @@ public class StudyGroupController {
         }
     }
 
+    /** 초대 토큰으로 가입 (경로가 /study-groups/join-by-invite 이어야 /{groupId}에 걸리지 않음) */
+    @PostMapping("/join-by-invite")
+    public ResponseEntity<ApiResponse<JoinRes>> joinByInvite(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @Valid @RequestBody JoinByInviteReq request
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        JoinRes res = studyGroupService.joinByInvite(actor, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(res));
+    }
+
+    /** 공개 가입 */
+    @PostMapping("/{groupId}/join")
+    public ResponseEntity<ApiResponse<JoinRes>> joinPublic(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        JoinRes res = studyGroupService.joinPublic(actor, groupId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(res));
+    }
+
+    /** 초대 링크 생성 (그룹장만) */
+    @PostMapping("/{groupId}/invitations")
+    public ResponseEntity<ApiResponse<InvitationCreateRes>> createInvitation(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @RequestBody(required = false) InvitationCreateReq request
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        InvitationCreateRes res = studyGroupService.createInvitation(actor, groupId, request != null ? request : new InvitationCreateReq());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(res));
+    }
+
+    private static UUID parseActor(String userIdHeader) {
+        if (userIdHeader == null || userIdHeader.isBlank()) return null;
+        try {
+            return UUID.fromString(userIdHeader);
+        } catch (IllegalArgumentException ex) {
+            throw new com.checkit.common.exception.BusinessException(com.checkit.common.exception.CommonCode.INVALID_UUID);
+        }
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<StudyGroupCreateRes>> create(
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @Valid @RequestBody StudyGroupCreateReq request
     ) {
-        UUID actor = null;
-        if (userIdHeader != null && !userIdHeader.isBlank()) {
-            try {
-                actor = UUID.fromString(userIdHeader);
-            } catch (IllegalArgumentException ex) {
-                throw new com.checkit.common.exception.BusinessException(com.checkit.common.exception.CommonCode.INVALID_UUID);
-            }
-        }
+        UUID actor = parseActor(userIdHeader);
         StudyGroupCreateRes res = studyGroupService.createStudyGroup(actor, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(res));
     }
@@ -122,14 +162,7 @@ public class StudyGroupController {
             @PathVariable Long groupId,
             @Valid @RequestBody StudyGroupUpdateReq request
     ) {
-        UUID actor = null;
-        if (userIdHeader != null && !userIdHeader.isBlank()) {
-            try {
-                actor = UUID.fromString(userIdHeader);
-            } catch (IllegalArgumentException ex) {
-                throw new com.checkit.common.exception.BusinessException(com.checkit.common.exception.CommonCode.INVALID_UUID);
-            }
-        }
+        UUID actor = parseActor(userIdHeader);
         StudyGroupUpdateRes res = studyGroupService.updateStudyGroup(actor, groupId, request);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
@@ -145,14 +178,7 @@ public class StudyGroupController {
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @PathVariable Long groupId
     ) {
-        UUID actor = null;
-        if (userIdHeader != null && !userIdHeader.isBlank()) {
-            try {
-                actor = UUID.fromString(userIdHeader);
-            } catch (IllegalArgumentException ex) {
-                throw new com.checkit.common.exception.BusinessException(com.checkit.common.exception.CommonCode.INVALID_UUID);
-            }
-        }
+        UUID actor = parseActor(userIdHeader);
         studyGroupService.deleteStudyGroup(actor, groupId);
         return ResponseEntity.ok(ApiResponse.success());
     }
