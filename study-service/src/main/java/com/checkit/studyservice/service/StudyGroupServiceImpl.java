@@ -2,9 +2,11 @@ package com.checkit.studyservice.service;
 
 import com.checkit.common.exception.BusinessException;
 import com.checkit.common.exception.CommonCode;
+import com.checkit.studyservice.dto.StudyGroupCardRes;
 import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
 import com.checkit.studyservice.dto.StudyGroupDetailRes;
+import com.checkit.studyservice.dto.StudyGroupSearchCond;
 import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 import com.checkit.studyservice.entity.*;
@@ -12,6 +14,10 @@ import com.checkit.studyservice.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +45,7 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     private final GroupExemptionRepository exemptionRepository;
     private final GroupVerificationMethodRepository methodRepository;
     private final StudyUserRepository studyUserRepository;
+    private final StudyGroupSearchRepository studyGroupSearchRepository;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -221,6 +228,75 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .durationWeeks(group.getDurationWeeks())
                 .isIndefinite(group.getIsIndefinite())
                 .verificationRules(ruleSummaries)
+                .hashtags(hashtagNames)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StudyGroupCardRes> searchStudyGroups(StudyGroupSearchCond cond) {
+        Pageable pageable = PageRequest.of(cond.getPage(), cond.getSize());
+        Page<StudyGroup> groupPage = studyGroupSearchRepository.search(cond, pageable);
+        List<StudyGroup> content = groupPage.getContent();
+        if (content.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, groupPage.getTotalElements());
+        }
+
+        List<Long> groupIds = content.stream().map(StudyGroup::getGroupId).toList();
+        List<GroupVerificationSchedule> schedules = scheduleRepository.findAllByGroupIdIn(groupIds).stream()
+                .filter(s -> !s.isDeleted()).toList();
+        List<GroupVerificationMethod> methods = methodRepository.findAllByGroupIdIn(groupIds).stream()
+                .filter(m -> !m.isDeleted()).toList();
+        List<StudyGroupTag> tags = studyGroupTagRepository.findAllByGroupIdIn(groupIds).stream()
+                .filter(t -> !t.isDeleted()).toList();
+        Set<Long> hashtagIds = tags.stream().map(StudyGroupTag::getHashtagId).collect(Collectors.toSet());
+        Map<Long, String> hashtagNameById = new HashMap<>();
+        if (!hashtagIds.isEmpty()) {
+            hashtagRepository.findAllById(hashtagIds).forEach(h -> hashtagNameById.put(h.getHashtagId(), h.getName()));
+        }
+
+        Map<Long, List<GroupVerificationSchedule>> schedulesByGroup = schedules.stream().collect(Collectors.groupingBy(GroupVerificationSchedule::getGroupId));
+        Map<Long, List<GroupVerificationMethod>> methodsByGroup = methods.stream().collect(Collectors.groupingBy(GroupVerificationMethod::getGroupId));
+        Map<Long, List<String>> hashtagsByGroup = tags.stream()
+                .collect(Collectors.groupingBy(StudyGroupTag::getGroupId,
+                        Collectors.mapping(t -> hashtagNameById.getOrDefault(t.getHashtagId(), ""), Collectors.toList())))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().filter(s -> !s.isBlank()).toList()));
+
+        List<StudyGroupCardRes> cards = content.stream()
+                .map(g -> toCardRes(g,
+                        schedulesByGroup.getOrDefault(g.getGroupId(), List.of()),
+                        methodsByGroup.getOrDefault(g.getGroupId(), List.of()),
+                        hashtagsByGroup.getOrDefault(g.getGroupId(), List.of())))
+                .toList();
+        return new PageImpl<>(cards, pageable, groupPage.getTotalElements());
+    }
+
+    private StudyGroupCardRes toCardRes(StudyGroup g, List<GroupVerificationSchedule> groupSchedules,
+                                        List<GroupVerificationMethod> groupMethods, List<String> hashtagNames) {
+        String verificationTimeSummary = null;
+        if (!groupSchedules.isEmpty()) {
+            GroupVerificationSchedule first = groupSchedules.get(0);
+            List<String> days = dayMaskToList(first.getDaysOfWeek());
+            String timeStr = first.getEndTime() != null ? first.getEndTime().format(HH_MM) : "";
+            verificationTimeSummary = (days.isEmpty() ? "" : String.join(",", days)) + (timeStr.isEmpty() ? "" : " " + timeStr);
+        }
+        List<String> methodCodes = groupMethods.stream()
+                .map(m -> m.getMethodCode().name())
+                .distinct()
+                .toList();
+        return StudyGroupCardRes.builder()
+                .groupId(g.getGroupId())
+                .category(g.getCategory() != null ? g.getCategory().name() : null)
+                .methodCodes(methodCodes)
+                .title(g.getTitle())
+                .minMembers(g.getMinMembers())
+                .maxMembers(g.getMaxMembers())
+                .currentMembers(g.getCurrentMembers())
+                .verificationTimeSummary(verificationTimeSummary)
+                .startDate(g.getStartDate())
+                .endDate(g.getEndDate())
+                .isIndefinite(g.getIsIndefinite())
                 .hashtags(hashtagNames)
                 .build();
     }

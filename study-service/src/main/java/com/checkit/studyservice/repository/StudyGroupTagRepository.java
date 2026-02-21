@@ -9,5 +9,8 @@ public interface StudyGroupTagRepository extends JpaRepository<StudyGroupTag, Lo
 
     List<StudyGroupTag> findAllByGroupId(Long groupId);
 
+    /** 여러 그룹의 태그 매핑을 한 번에 조회 (N+1 방지) */
+    List<StudyGroupTag> findAllByGroupIdIn(List<Long> groupIds);
+
     void deleteByGroupId(Long groupId);
 }
