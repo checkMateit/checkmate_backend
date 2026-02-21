@@ -71,6 +71,16 @@ services:
       - postgres
       - redis
       - eureka-service
+      - rabbitmq
+    networks:
+      - checkmate-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - checkmate-network
 
