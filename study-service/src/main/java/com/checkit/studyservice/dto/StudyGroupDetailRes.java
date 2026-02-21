@@ -48,7 +48,8 @@ public class StudyGroupDetailRes {
         private String timezone;
         private FrequencySummary frequency;
         private ExemptionSummary exemption;
-        private List<String> methodCodes;
+        /** 해당 규칙의 인증 방식 코드 1개 (PHOTO/CHECKLIST/GPS/GITHUB) */
+        private String methodCode;
     }
 
     @Getter

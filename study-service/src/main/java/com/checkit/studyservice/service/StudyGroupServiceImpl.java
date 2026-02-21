@@ -187,7 +187,8 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         Map<Integer, GroupVerificationSchedule> scheduleBySlot = schedules.stream().collect(Collectors.toMap(GroupVerificationSchedule::getSlot, s -> s));
         Map<Integer, GroupVerificationFrequency> freqBySlot = frequencies.stream().collect(Collectors.toMap(GroupVerificationFrequency::getSlot, f -> f));
         Map<Integer, GroupExemption> exemptionBySlot = exemptions.stream().collect(Collectors.toMap(GroupExemption::getSlot, e -> e));
-        Map<Integer, List<GroupVerificationMethod>> methodsBySlot = methods.stream().collect(Collectors.groupingBy(GroupVerificationMethod::getSlot));
+        Map<Integer, GroupVerificationMethod> methodBySlot = methods.stream()
+                .collect(Collectors.toMap(GroupVerificationMethod::getSlot, m -> m));
 
         List<StudyGroupDetailRes.VerificationRuleSummary> ruleSummaries = new ArrayList<>();
         for (int slot : Arrays.asList(1, 2)) {
@@ -195,7 +196,8 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             if (s == null) continue;
             GroupVerificationFrequency f = freqBySlot.get(slot);
             GroupExemption ex = exemptionBySlot.get(slot);
-            List<GroupVerificationMethod> slotMethods = methodsBySlot.getOrDefault(slot, List.of());
+            GroupVerificationMethod slotMethod = methodBySlot.get(slot);
+            if (slotMethod == null) continue;
 
             ruleSummaries.add(StudyGroupDetailRes.VerificationRuleSummary.builder()
                     .slot(slot)
@@ -212,7 +214,7 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                             .limitUnit(ex.getLimitUnit().name())
                             .limitCnt(ex.getLimitCnt())
                             .build() : null)
-                    .methodCodes(slotMethods.stream().map(m -> m.getMethodCode().name()).toList())
+                    .methodCode(slotMethod.getMethodCode().name())
                     .build());
         }
 
@@ -577,23 +579,8 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             }
         }
 
-        // days overlap (start_time 제거 정책)
-        List<StudyGroupCreateReq.VerificationRule> rules = request.getVerificationRules();
-        if (rules.size() == 2) {
-            StudyGroupCreateReq.VerificationRule a = rules.get(0);
-            StudyGroupCreateReq.VerificationRule b = rules.get(1);
-            if (isOverlap(a.getSchedule(), b.getSchedule())) {
-                throw new BusinessException(CommonCode.BAD_REQUEST, "두 인증 규칙의 요일/시간대가 서로 겹칠 수 없습니다.");
-            }
-        }
-
-        // github only COTE (checked later with category)
-    }
-
-    private boolean isOverlap(StudyGroupCreateReq.Schedule a, StudyGroupCreateReq.Schedule b) {
-        int maskA = toDayMask(a.getDaysOfWeek());
-        int maskB = toDayMask(b.getDaysOfWeek());
-        return (maskA & maskB) != 0;
+        // 각 규칙은 독립된 빈도/일정을 가짐 (동일 요일 허용, 예: PHOTO 10:00 / CHECKLIST 09:00·23:00)
+        // github only COTE (checked in saveVerificationRules)
     }
 
     private void upsertHashtags(Long groupId, UUID actor, List<String> hashtags) {
@@ -639,9 +626,8 @@ public class StudyGroupServiceImpl implements StudyGroupService {
 
             StudyGroupCreateReq.Schedule s = r.getSchedule();
 
-            boolean hasChecklist = r.getMethods() != null && r.getMethods().stream()
-                    .anyMatch(m -> m.getMethodCode() == VerificationMethodCode.CHECKLIST);
-            if (hasChecklist && (s.getCheckEndTime() == null || s.getCheckEndTime().isBlank())) {
+            if (r.getMethod().getMethodCode() == VerificationMethodCode.CHECKLIST
+                    && (s.getCheckEndTime() == null || s.getCheckEndTime().isBlank())) {
                 throw new BusinessException(CommonCode.BAD_REQUEST, "CHECKLIST 인증은 schedule.check_end_time이 필요합니다.");
             }
             GroupVerificationSchedule schedule = GroupVerificationSchedule.builder()
@@ -676,21 +662,20 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             ex.setCreator(actor);
             exemptionRepository.save(ex);
 
-            for (StudyGroupCreateReq.Method m : r.getMethods()) {
-                if (m.getMethodCode() == VerificationMethodCode.GITHUB && category != Category.COTE) {
-                    throw new BusinessException(CommonCode.BAD_REQUEST, "GitHub 커밋 인증은 코테(COTE) 카테고리에서만 사용할 수 있습니다.");
-                }
-
-                String details = toDetailsJson(m);
-                GroupVerificationMethod method = GroupVerificationMethod.builder()
-                        .groupId(groupId)
-                        .slot(slot)
-                        .methodCode(m.getMethodCode())
-                        .detailsJson(details)
-                        .build();
-                method.setCreator(actor);
-                methodRepository.save(method);
+            StudyGroupCreateReq.Method m = r.getMethod();
+            if (m.getMethodCode() == VerificationMethodCode.GITHUB && category != Category.COTE) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "GitHub 커밋 인증은 코테(COTE) 카테고리에서만 사용할 수 있습니다.");
             }
+
+            String details = toDetailsJson(m);
+            GroupVerificationMethod method = GroupVerificationMethod.builder()
+                    .groupId(groupId)
+                    .slot(slot)
+                    .methodCode(m.getMethodCode())
+                    .detailsJson(details)
+                    .build();
+            method.setCreator(actor);
+            methodRepository.save(method);
         }
     }
 

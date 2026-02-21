@@ -85,10 +85,10 @@ public class StudyGroupCreateReq {
         @NotNull
         private Frequency frequency;
 
+        /** 규칙당 인증 방식 1개 (PHOTO/CHECKLIST/GPS/GITHUB) */
         @Valid
         @NotNull
-        @Size(min = 1)
-        private List<Method> methods;
+        private Method method;
 
         @Valid
         private Exemption exemption;
