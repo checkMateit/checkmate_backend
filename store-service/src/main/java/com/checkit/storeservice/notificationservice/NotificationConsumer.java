@@ -4,6 +4,7 @@ import com.checkit.storeservice.notificationservice.dto.NotificationRequest;
 import com.checkit.storeservice.notificationservice.dto.NotificationType;
 import com.checkit.storeservice.notificationservice.entity.NotificationEntity;
 import com.checkit.storeservice.notificationservice.repository.NotificationRepository;
+import com.checkit.storeservice.notificationservice.service.SseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class NotificationConsumer {
 
     private final NotificationRepository notificationRepository;
+    private final SseService sseService;
 
     @RabbitListener(queues = "notification.queue")
     public void consumeNotification(NotificationRequest request) {
@@ -29,7 +31,10 @@ public class NotificationConsumer {
                 .build();
 
         notificationRepository.save(notification);
+        log.info("알림 DB 저장 완료: ID{}", notification.getId());
 
-        // 2. TODO: 여기서 SSE를 통해 클라이언트에게 실시간 알림 쏘기
+        sseService.sendNotification(String.valueOf(request.receiverId()), request);
+        log.info("실시간 알림 전송 시도: 대상 유저 {}", request.receiverId());
+
     }
 }
