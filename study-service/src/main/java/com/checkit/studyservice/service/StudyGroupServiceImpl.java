@@ -4,6 +4,9 @@ import com.checkit.common.exception.BusinessException;
 import com.checkit.common.exception.CommonCode;
 import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
+import com.checkit.studyservice.dto.StudyGroupDetailRes;
+import com.checkit.studyservice.dto.StudyGroupUpdateReq;
+import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 import com.checkit.studyservice.entity.*;
 import com.checkit.studyservice.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -87,6 +90,187 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .groupId(saved.getGroupId())
                 .createdAt(Optional.ofNullable(saved.getCreatedAt()).orElse(OffsetDateTime.now(ZoneOffset.UTC)))
                 .build();
+    }
+
+    @Override
+    public StudyGroupUpdateRes updateStudyGroup(UUID actor, Long groupId, StudyGroupUpdateReq request) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+
+        if (!group.getOwnerUserId().equals(actor)) {
+            throw new BusinessException(CommonCode.FORBIDDEN);
+        }
+
+        validateUpdateRequest(request, group);
+
+        group.setTitle(request.getTitle());
+        group.setDescription(request.getDescription());
+        group.setThumbnailType(request.getThumbnailType());
+        group.setThumbnailUrl(request.getThumbnailUrl());
+        group.setCategory(request.getCategory());
+        group.setJoinType(request.getJoinType());
+        group.setMinMembers(request.getMinMembers());
+        group.setMaxMembers(request.getMaxMembers());
+        group.setStartDate(request.getPeriod().getStartDate());
+        group.setEndDate(request.getPeriod().getEndDate());
+        group.setDurationWeeks(request.getPeriod().getDurationWeeks());
+        group.setIsIndefinite(request.getPeriod().getIsIndefinite());
+        group.setUpdater(actor);
+
+        studyGroupRepository.save(group);
+        replaceHashtags(groupId, actor, request.getHashtags());
+
+        return StudyGroupUpdateRes.builder()
+                .groupId(group.getGroupId())
+                .updatedAt(Optional.ofNullable(group.getUpdatedAt()).orElse(OffsetDateTime.now(ZoneOffset.UTC)))
+                .build();
+    }
+
+    @Override
+    public void deleteStudyGroup(UUID actor, Long groupId) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!group.getOwnerUserId().equals(actor)) {
+            throw new BusinessException(CommonCode.FORBIDDEN);
+        }
+        group.softDelete(actor);
+        studyGroupRepository.save(group);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StudyGroupDetailRes getStudyGroupDetail(Long groupId) {
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+
+        List<GroupVerificationSchedule> schedules = scheduleRepository.findAllByGroupId(groupId).stream()
+                .filter(s -> !s.isDeleted()).toList();
+        List<GroupVerificationFrequency> frequencies = frequencyRepository.findAllByGroupId(groupId).stream()
+                .filter(f -> !f.isDeleted()).toList();
+        List<GroupExemption> exemptions = exemptionRepository.findAllByGroupId(groupId).stream()
+                .filter(e -> !e.isDeleted()).toList();
+        List<GroupVerificationMethod> methods = methodRepository.findAllByGroupId(groupId).stream()
+                .filter(m -> !m.isDeleted()).toList();
+
+        Map<Integer, GroupVerificationSchedule> scheduleBySlot = schedules.stream().collect(Collectors.toMap(GroupVerificationSchedule::getSlot, s -> s));
+        Map<Integer, GroupVerificationFrequency> freqBySlot = frequencies.stream().collect(Collectors.toMap(GroupVerificationFrequency::getSlot, f -> f));
+        Map<Integer, GroupExemption> exemptionBySlot = exemptions.stream().collect(Collectors.toMap(GroupExemption::getSlot, e -> e));
+        Map<Integer, List<GroupVerificationMethod>> methodsBySlot = methods.stream().collect(Collectors.groupingBy(GroupVerificationMethod::getSlot));
+
+        List<StudyGroupDetailRes.VerificationRuleSummary> ruleSummaries = new ArrayList<>();
+        for (int slot : Arrays.asList(1, 2)) {
+            GroupVerificationSchedule s = scheduleBySlot.get(slot);
+            if (s == null) continue;
+            GroupVerificationFrequency f = freqBySlot.get(slot);
+            GroupExemption ex = exemptionBySlot.get(slot);
+            List<GroupVerificationMethod> slotMethods = methodsBySlot.getOrDefault(slot, List.of());
+
+            ruleSummaries.add(StudyGroupDetailRes.VerificationRuleSummary.builder()
+                    .slot(slot)
+                    .endTime(s.getEndTime() != null ? s.getEndTime().format(HH_MM) : null)
+                    .checkEndTime(s.getCheckEndTime() != null ? s.getCheckEndTime().format(HH_MM) : null)
+                    .daysOfWeek(dayMaskToList(s.getDaysOfWeek()))
+                    .timezone(s.getTimezone())
+                    .frequency(f != null ? StudyGroupDetailRes.FrequencySummary.builder()
+                            .unit(f.getUnit().name())
+                            .requiredCnt(f.getRequiredCnt())
+                            .build() : null)
+                    .exemption(ex != null ? StudyGroupDetailRes.ExemptionSummary.builder()
+                            .isEnabled(ex.getIsEnabled())
+                            .limitUnit(ex.getLimitUnit().name())
+                            .limitCnt(ex.getLimitCnt())
+                            .build() : null)
+                    .methodCodes(slotMethods.stream().map(m -> m.getMethodCode().name()).toList())
+                    .build());
+        }
+
+        List<String> hashtagNames = studyGroupTagRepository.findAllByGroupId(groupId).stream()
+                .filter(m -> !m.isDeleted())
+                .map(m -> hashtagRepository.findById(m.getHashtagId()).map(Hashtag::getName).orElse(null))
+                .filter(Objects::nonNull)
+                .toList();
+
+        return StudyGroupDetailRes.builder()
+                .groupId(group.getGroupId())
+                .title(group.getTitle())
+                .description(group.getDescription())
+                .thumbnailType(group.getThumbnailType() != null ? group.getThumbnailType().name() : null)
+                .thumbnailUrl(group.getThumbnailUrl())
+                .category(group.getCategory() != null ? group.getCategory().name() : null)
+                .status(group.getStatus() != null ? group.getStatus().name() : null)
+                .ownerUserId(group.getOwnerUserId())
+                .minMembers(group.getMinMembers())
+                .maxMembers(group.getMaxMembers())
+                .currentMembers(group.getCurrentMembers())
+                .joinType(group.getJoinType() != null ? group.getJoinType().name() : null)
+                .startDate(group.getStartDate())
+                .endDate(group.getEndDate())
+                .durationWeeks(group.getDurationWeeks())
+                .isIndefinite(group.getIsIndefinite())
+                .verificationRules(ruleSummaries)
+                .hashtags(hashtagNames)
+                .build();
+    }
+
+    private List<String> dayMaskToList(Integer daysOfWeek) {
+        if (daysOfWeek == null) return List.of();
+        String[] names = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            if ((daysOfWeek & (1 << i)) != 0) result.add(names[i]);
+        }
+        return result;
+    }
+
+    private void validateUpdateRequest(StudyGroupUpdateReq request, StudyGroup group) {
+        if (request.getMinMembers() > request.getMaxMembers()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "min_members는 max_members보다 클 수 없습니다.");
+        }
+        int current = group.getCurrentMembers();
+        if (request.getMinMembers() > current) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "min_members는 현재 참여 인원(" + current + "명)보다 클 수 없습니다.");
+        }
+        if (request.getMaxMembers() < current) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "max_members는 현재 참여 인원(" + current + "명)보다 작을 수 없습니다.");
+        }
+        StudyGroupUpdateReq.Period p = request.getPeriod();
+        if (Boolean.TRUE.equals(p.getIsIndefinite())) {
+            // 무기한: 기간값 선택
+        } else {
+            boolean hasRange = p.getStartDate() != null && p.getEndDate() != null;
+            boolean hasDuration = p.getStartDate() != null && p.getDurationWeeks() != null;
+            if (!hasRange && !hasDuration) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "period는 RANGE(start_date+end_date) 또는 DURATION(start_date+duration_weeks) 또는 INDEFINITE(is_indefinite=true) 중 하나여야 합니다.");
+            }
+        }
+    }
+
+    private void replaceHashtags(Long groupId, UUID actor, List<String> newHashtags) {
+        List<StudyGroupTag> existing = studyGroupTagRepository.findAllByGroupId(groupId);
+        for (StudyGroupTag mapping : existing) {
+            Hashtag tag = hashtagRepository.findById(mapping.getHashtagId()).orElse(null);
+            if (tag != null) {
+                int cnt = Optional.ofNullable(tag.getUseCnt()).orElse(0);
+                tag.setUseCnt(Math.max(0, cnt - 1));
+                tag.setUpdater(actor);
+                hashtagRepository.save(tag);
+            }
+        }
+        studyGroupTagRepository.deleteByGroupId(groupId);
+        upsertHashtags(groupId, actor, newHashtags != null ? newHashtags : List.of());
     }
 
     private void validateCreateRequest(StudyGroupCreateReq request) {
