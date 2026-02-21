@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -34,6 +35,7 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     private final GroupVerificationFrequencyRepository frequencyRepository;
     private final GroupExemptionRepository exemptionRepository;
     private final GroupVerificationMethodRepository methodRepository;
+    private final StudyUserRepository studyUserRepository;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -64,6 +66,19 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         group.setCreator(actor);
 
         StudyGroup saved = studyGroupRepository.save(group);
+
+        // 그룹장을 study_user에 Leader로 등록 (DDL 정합성)
+        StudyUser ownerMember = StudyUser.builder()
+                .userId(actor)
+                .studyId(saved.getGroupId())
+                .studyId2(saved.getGroupId())
+                .userId2(actor)
+                .role(StudyUserRole.Leader)
+                .status(StudyUserStatus.ACTIVE)
+                .isStudyNotification(true)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        studyUserRepository.save(ownerMember);
 
         upsertHashtags(saved.getGroupId(), actor, request.getHashtags());
         saveVerificationRules(saved.getGroupId(), actor, saved.getCategory(), request.getVerificationRules());
