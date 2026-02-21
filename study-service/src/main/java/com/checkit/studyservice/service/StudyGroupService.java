@@ -8,10 +8,12 @@ import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
 import com.checkit.studyservice.dto.StudyGroupCardRes;
 import com.checkit.studyservice.dto.StudyGroupDetailRes;
+import com.checkit.studyservice.dto.StudyGroupMemberRes;
 import com.checkit.studyservice.dto.StudyGroupSearchCond;
 import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -35,4 +37,10 @@ public interface StudyGroupService {
 
     /** 초대 토큰으로 가입 */
     JoinRes joinByInvite(UUID actor, JoinByInviteReq request);
+
+    /** 멤버 목록 조회 (그룹 멤버만 호출 가능) */
+    List<StudyGroupMemberRes> getMemberList(UUID actor, Long groupId);
+
+    /** 멤버 강퇴 (그룹장만 가능) */
+    void kickMember(UUID actor, Long groupId, UUID targetUserId);
 }

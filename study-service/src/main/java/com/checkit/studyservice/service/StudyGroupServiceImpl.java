@@ -7,6 +7,7 @@ import com.checkit.studyservice.dto.InvitationCreateRes;
 import com.checkit.studyservice.dto.JoinByInviteReq;
 import com.checkit.studyservice.dto.JoinRes;
 import com.checkit.studyservice.dto.StudyGroupCardRes;
+import com.checkit.studyservice.dto.StudyGroupMemberRes;
 import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
 import com.checkit.studyservice.dto.StudyGroupDetailRes;
@@ -410,6 +411,53 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .groupId(inv.getGroupId())
                 .joinedAt(member.getJoinedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StudyGroupMemberRes> getMemberList(UUID actor, Long groupId) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "그룹 멤버만 목록을 조회할 수 있습니다.");
+        }
+        return studyUserRepository.findAllByStudyId(groupId).stream()
+                .map(m -> StudyGroupMemberRes.builder()
+                        .userId(m.getUserId())
+                        .role(m.getRole().name())
+                        .status(m.getStatus().name())
+                        .joinedAt(m.getJoinedAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public void kickMember(UUID actor, Long groupId, UUID targetUserId) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!group.getOwnerUserId().equals(actor)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "그룹장만 멤버를 강퇴할 수 있습니다.");
+        }
+        if (group.getOwnerUserId().equals(targetUserId)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "그룹장은 강퇴할 수 없습니다.");
+        }
+        StudyUser target = studyUserRepository.findById(new StudyUserId(targetUserId, groupId))
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 그룹의 멤버를 찾을 수 없습니다."));
+        studyUserRepository.delete(target);
+        group.setCurrentMembers(group.getCurrentMembers() - 1);
+        studyGroupRepository.save(group);
     }
 
     private String generateInviteCode() {

@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface StudyUserRepository extends JpaRepository<StudyUser, StudyUserId> {
 
     boolean existsByUserIdAndStudyId(java.util.UUID userId, Long studyId);
+
+    java.util.List<StudyUser> findAllByStudyId(Long studyId);
 }

@@ -9,6 +9,7 @@ import com.checkit.studyservice.dto.StudyGroupCardRes;
 import com.checkit.studyservice.dto.StudyGroupCreateReq;
 import com.checkit.studyservice.dto.StudyGroupCreateRes;
 import com.checkit.studyservice.dto.StudyGroupDetailRes;
+import com.checkit.studyservice.dto.StudyGroupMemberRes;
 import com.checkit.studyservice.dto.StudyGroupSearchCond;
 import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
@@ -22,7 +23,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -171,6 +171,27 @@ public class StudyGroupController {
     public ResponseEntity<ApiResponse<StudyGroupDetailRes>> getDetail(@PathVariable Long groupId) {
         StudyGroupDetailRes res = studyGroupService.getStudyGroupDetail(groupId);
         return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<ApiResponse<List<StudyGroupMemberRes>>> getMemberList(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        List<StudyGroupMemberRes> res = studyGroupService.getMemberList(actor, groupId);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    @DeleteMapping("/{groupId}/members/{userId}")
+    public ResponseEntity<ApiResponse<Void>> kickMember(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @PathVariable UUID userId
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        studyGroupService.kickMember(actor, groupId, userId);
+        return ResponseEntity.ok(ApiResponse.success());
     }
 
     @DeleteMapping("/{groupId}")
