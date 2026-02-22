@@ -37,13 +37,13 @@ INSERT INTO users (user_id, email, name, nickname, gender, birthdate, phone_numb
 
 INSERT INTO study_groups (group_id, title, description, min_members, max_members, current_members, status, owner_user_id, thumbnail_type, thumbnail_url, category, join_type, start_date, end_date, duration_weeks, is_indefinite, closed_at) VALUES
   (1, 'Study Group 01', '자동 생성 스터디 그룹 01', 2, 9, 6, 'RECRUITING', '267081d6-6494-5e96-8b99-2c637976b26b', 'DEFAULT', NULL, 'WAKE', 'PUBLIC', '2026-01-12', '2026-02-23', 6, false, NULL),
-  (2, 'Study Group 02', '자동 생성 스터디 그룹 02', 2, 12, 7, 'RECRUITING', '817d1b96-e913-52d5-a02b-83d6c3454f2d', 'UPLOAD', 'https://pics.example.com/groups/g2.jpg', 'SEATED', 'APPROVAL', '2026-01-05', '2026-03-02', 8, false, NULL),
+  (2, 'Study Group 02', '자동 생성 스터디 그룹 02', 2, 12, 7, 'RECRUITING', '817d1b96-e913-52d5-a02b-83d6c3454f2d', 'UPLOAD', 'https://pics.example.com/groups/g2.jpg', 'SEATED', 'PUBLIC', '2026-01-05', '2026-03-02', 8, false, NULL),
   (3, 'Study Group 03', '자동 생성 스터디 그룹 03', 2, 15, 8, 'RECRUITING', '73da3155-fde0-5355-a8bd-ff62a69d3a27', 'DEFAULT', NULL, 'COTE', 'INVITE_ONLY', '2025-12-20', NULL, NULL, true, NULL),
   (4, 'Study Group 04', '자동 생성 스터디 그룹 04', 2, 18, 5, 'CLOSED', '2bb08dea-daa7-59c0-b4bb-4d5d19c0cae1', 'UPLOAD', 'https://pics.example.com/groups/g4.jpg', 'LANG', 'PUBLIC', '2025-12-22', '2026-01-19', 4, false, '2026-01-07 18:00:00'),
-  (5, 'Study Group 05', '자동 생성 스터디 그룹 05', 2, 6, 6, 'RECRUITING', '76f0a825-b223-5908-96ca-710a6e10ae6d', 'DEFAULT', NULL, 'CERT', 'APPROVAL', '2025-12-15', '2026-01-26', 6, false, NULL),
+  (5, 'Study Group 05', '자동 생성 스터디 그룹 05', 2, 6, 6, 'RECRUITING', '76f0a825-b223-5908-96ca-710a6e10ae6d', 'DEFAULT', NULL, 'CERT', 'PUBLIC', '2025-12-15', '2026-01-26', 6, false, NULL),
   (6, 'Study Group 06', '자동 생성 스터디 그룹 06', 2, 9, 7, 'RECRUITING', 'af7d24ac-519b-5d02-8607-1db817e5b740', 'UPLOAD', 'https://pics.example.com/groups/g6.jpg', 'ETC', 'INVITE_ONLY', '2025-11-20', NULL, NULL, true, NULL),
   (7, 'Study Group 07', '자동 생성 스터디 그룹 07', 2, 12, 8, 'CLOSED', '0caafffe-4ca4-5521-924c-48d1b06607b1', 'DEFAULT', NULL, 'WAKE', 'PUBLIC', '2025-12-01', '2026-02-09', 10, false, '2025-12-29 18:00:00'),
-  (8, 'Study Group 08', '자동 생성 스터디 그룹 08', 2, 15, 5, 'RECRUITING', '5903b5cc-f44b-51e7-a88a-f5e1d49ee157', 'UPLOAD', 'https://pics.example.com/groups/g8.jpg', 'SEATED', 'APPROVAL', '2025-11-24', '2025-12-22', 4, false, NULL),
+  (8, 'Study Group 08', '자동 생성 스터디 그룹 08', 2, 15, 5, 'RECRUITING', '5903b5cc-f44b-51e7-a88a-f5e1d49ee157', 'UPLOAD', 'https://pics.example.com/groups/g8.jpg', 'SEATED', 'PUBLIC', '2025-11-24', '2025-12-22', 4, false, NULL),
   (9, 'Study Group 09', '자동 생성 스터디 그룹 09', 2, 18, 6, 'RECRUITING', '281fd5b3-39a5-5aea-b812-41750c5f6a15', 'DEFAULT', NULL, 'COTE', 'INVITE_ONLY', '2025-10-21', NULL, NULL, true, NULL),
   (10, 'Study Group 10', '자동 생성 스터디 그룹 10', 2, 6, 6, 'CLOSED', 'd9c50348-d82b-5cec-b29d-ea5e0bfab91f', 'UPLOAD', 'https://pics.example.com/groups/g10.jpg', 'LANG', 'PUBLIC', '2025-11-10', '2026-01-05', 8, false, '2025-12-20 18:00:00');
 
