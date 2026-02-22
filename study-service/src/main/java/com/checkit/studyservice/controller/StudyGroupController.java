@@ -13,6 +13,8 @@ import com.checkit.studyservice.dto.StudyGroupMemberRes;
 import com.checkit.studyservice.dto.StudyGroupSearchCond;
 import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
+import com.checkit.studyservice.dto.VerificationRuleDetailRes;
+import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.entity.Category;
 import com.checkit.studyservice.entity.JoinType;
 import com.checkit.studyservice.entity.VerificationMethodCode;
@@ -23,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -171,6 +174,48 @@ public class StudyGroupController {
     public ResponseEntity<ApiResponse<StudyGroupDetailRes>> getDetail(@PathVariable Long groupId) {
         StudyGroupDetailRes res = studyGroupService.getStudyGroupDetail(groupId);
         return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 인증 규칙 목록 조회 */
+    @GetMapping("/{groupId}/verification-rules")
+    public ResponseEntity<ApiResponse<List<VerificationRuleDetailRes>>> getVerificationRules(@PathVariable Long groupId) {
+        List<VerificationRuleDetailRes> res = studyGroupService.getVerificationRules(groupId);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 인증 규칙 1건 조회 (slot: 1 또는 2) */
+    @GetMapping("/{groupId}/verification-rules/{slot}")
+    public ResponseEntity<ApiResponse<VerificationRuleDetailRes>> getVerificationRule(
+            @PathVariable Long groupId,
+            @PathVariable Integer slot
+    ) {
+        VerificationRuleDetailRes res = studyGroupService.getVerificationRule(groupId, slot);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 인증 규칙 1건 수정 (그룹장만) */
+    @PatchMapping("/{groupId}/verification-rules/{slot}")
+    public ResponseEntity<ApiResponse<VerificationRuleDetailRes>> updateVerificationRule(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @PathVariable Integer slot,
+            @Valid @RequestBody VerificationRuleUpdateReq request
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        VerificationRuleDetailRes res = studyGroupService.updateVerificationRule(actor, groupId, slot, request);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 인증 규칙 1건 삭제 (그룹장만) */
+    @DeleteMapping("/{groupId}/verification-rules/{slot}")
+    public ResponseEntity<ApiResponse<Void>> deleteVerificationRule(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @PathVariable Integer slot
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        studyGroupService.deleteVerificationRule(actor, groupId, slot);
+        return ResponseEntity.ok(ApiResponse.success());
     }
 
     @GetMapping("/{groupId}/members")

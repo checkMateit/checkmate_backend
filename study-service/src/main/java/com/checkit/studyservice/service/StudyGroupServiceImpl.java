@@ -14,9 +14,12 @@ import com.checkit.studyservice.dto.StudyGroupDetailRes;
 import com.checkit.studyservice.dto.StudyGroupSearchCond;
 import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
+import com.checkit.studyservice.dto.VerificationRuleDetailRes;
+import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.entity.*;
 import com.checkit.studyservice.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -497,6 +500,226 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .isIndefinite(g.getIsIndefinite())
                 .hashtags(hashtagNames)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VerificationRuleDetailRes> getVerificationRules(Long groupId) {
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+
+        List<GroupVerificationSchedule> schedules = scheduleRepository.findAllByGroupId(groupId).stream()
+                .filter(s -> !s.isDeleted()).toList();
+        List<GroupVerificationFrequency> frequencies = frequencyRepository.findAllByGroupId(groupId).stream()
+                .filter(f -> !f.isDeleted()).toList();
+        List<GroupExemption> exemptions = exemptionRepository.findAllByGroupId(groupId).stream()
+                .filter(e -> !e.isDeleted()).toList();
+        List<GroupVerificationMethod> methods = methodRepository.findAllByGroupId(groupId).stream()
+                .filter(m -> !m.isDeleted()).toList();
+
+        Map<Integer, GroupVerificationSchedule> scheduleBySlot = schedules.stream().collect(Collectors.toMap(GroupVerificationSchedule::getSlot, s -> s));
+        Map<Integer, GroupVerificationFrequency> freqBySlot = frequencies.stream().collect(Collectors.toMap(GroupVerificationFrequency::getSlot, f -> f));
+        Map<Integer, GroupExemption> exemptionBySlot = exemptions.stream().collect(Collectors.toMap(GroupExemption::getSlot, e -> e));
+        Map<Integer, GroupVerificationMethod> methodBySlot = methods.stream().collect(Collectors.toMap(GroupVerificationMethod::getSlot, m -> m));
+
+        List<VerificationRuleDetailRes> result = new ArrayList<>();
+        for (int slot : Arrays.asList(1, 2)) {
+            GroupVerificationSchedule s = scheduleBySlot.get(slot);
+            if (s == null) continue;
+            GroupVerificationMethod slotMethod = methodBySlot.get(slot);
+            if (slotMethod == null) continue;
+
+            GroupVerificationFrequency f = freqBySlot.get(slot);
+            GroupExemption ex = exemptionBySlot.get(slot);
+            result.add(toVerificationRuleDetailRes(slot, s, f, ex, slotMethod));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VerificationRuleDetailRes getVerificationRule(Long groupId, Integer slot) {
+        validateSlot(slot);
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+
+        GroupVerificationSchedule s = scheduleRepository.findByGroupIdAndSlot(groupId, slot).orElse(null);
+        GroupVerificationFrequency f = frequencyRepository.findByGroupIdAndSlot(groupId, slot).orElse(null);
+        GroupExemption ex = exemptionRepository.findByGroupIdAndSlot(groupId, slot).orElse(null);
+        GroupVerificationMethod m = methodRepository.findByGroupIdAndSlot(groupId, slot).orElse(null);
+
+        if (s == null || f == null || ex == null || m == null || s.isDeleted() || f.isDeleted() || ex.isDeleted() || m.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙을 찾을 수 없습니다.");
+        }
+        return toVerificationRuleDetailRes(slot, s, f, ex, m);
+    }
+
+    @Override
+    public VerificationRuleDetailRes updateVerificationRule(UUID actor, Long groupId, Integer slot, VerificationRuleUpdateReq request) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        validateSlot(slot);
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!group.getOwnerUserId().equals(actor)) {
+            throw new BusinessException(CommonCode.FORBIDDEN);
+        }
+
+        GroupVerificationSchedule s = scheduleRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙을 찾을 수 없습니다."));
+        GroupVerificationFrequency f = frequencyRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙을 찾을 수 없습니다."));
+        GroupExemption ex = exemptionRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙을 찾을 수 없습니다."));
+        GroupVerificationMethod m = methodRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙을 찾을 수 없습니다."));
+        if (s.isDeleted() || f.isDeleted() || ex.isDeleted() || m.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙을 찾을 수 없습니다.");
+        }
+
+        if (request.getMethod().getMethodCode() == VerificationMethodCode.CHECKLIST
+                && (request.getSchedule().getCheckEndTime() == null || request.getSchedule().getCheckEndTime().isBlank())) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "CHECKLIST 인증은 schedule.check_end_time이 필요합니다.");
+        }
+        if (request.getMethod().getMethodCode() == VerificationMethodCode.GITHUB && group.getCategory() != Category.COTE) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "GitHub 커밋 인증은 코테(COTE) 카테고리에서만 사용할 수 있습니다.");
+        }
+
+        s.setEndTime(LocalTime.parse(request.getSchedule().getEndTime(), HH_MM));
+        s.setCheckEndTime(parseOptionalTime(request.getSchedule().getCheckEndTime()));
+        s.setDaysOfWeek(toDayMask(request.getSchedule().getDaysOfWeek()));
+        s.setTimezone(request.getSchedule().getTimezone());
+        s.setUpdater(actor);
+        scheduleRepository.save(s);
+
+        f.setUnit(request.getFrequency().getUnit());
+        f.setRequiredCnt(request.getFrequency().getRequiredCnt());
+        f.setUpdater(actor);
+        frequencyRepository.save(f);
+
+        ex.setIsEnabled(request.getExemption() != null && request.getExemption().getIsEnabled());
+        ex.setLimitUnit(request.getExemption() != null ? request.getExemption().getLimitUnit() : ExemptionLimitUnit.TOTAL);
+        ex.setLimitCnt(request.getExemption() != null ? request.getExemption().getLimitCnt() : 0);
+        ex.setUpdater(actor);
+        exemptionRepository.save(ex);
+
+        String details = toDetailsJsonFromUpdateReq(request.getMethod());
+        m.setMethodCode(request.getMethod().getMethodCode());
+        m.setDetailsJson(details);
+        m.setUpdater(actor);
+        methodRepository.save(m);
+
+        return toVerificationRuleDetailRes(slot, s, f, ex, m);
+    }
+
+    @Override
+    public void deleteVerificationRule(UUID actor, Long groupId, Integer slot) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        validateSlot(slot);
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!group.getOwnerUserId().equals(actor)) {
+            throw new BusinessException(CommonCode.FORBIDDEN);
+        }
+
+        scheduleRepository.findByGroupIdAndSlot(groupId, slot).filter(s -> !s.isDeleted()).ifPresent(s -> {
+            s.softDelete(actor);
+            scheduleRepository.save(s);
+        });
+        frequencyRepository.findByGroupIdAndSlot(groupId, slot).filter(f -> !f.isDeleted()).ifPresent(f -> {
+            f.softDelete(actor);
+            frequencyRepository.save(f);
+        });
+        exemptionRepository.findByGroupIdAndSlot(groupId, slot).filter(e -> !e.isDeleted()).ifPresent(e -> {
+            e.softDelete(actor);
+            exemptionRepository.save(e);
+        });
+        methodRepository.findByGroupIdAndSlot(groupId, slot).filter(m -> !m.isDeleted()).ifPresent(m -> {
+            m.softDelete(actor);
+            methodRepository.save(m);
+        });
+    }
+
+    private void validateSlot(Integer slot) {
+        if (slot == null || (slot != 1 && slot != 2)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2만 가능합니다.");
+        }
+    }
+
+    private VerificationRuleDetailRes toVerificationRuleDetailRes(int slot, GroupVerificationSchedule s,
+                                                                 GroupVerificationFrequency f, GroupExemption ex,
+                                                                 GroupVerificationMethod m) {
+        Map<String, Object> methodDetails = null;
+        if (m.getDetailsJson() != null && !m.getDetailsJson().isBlank()) {
+            try {
+                methodDetails = objectMapper.readValue(m.getDetailsJson(), new TypeReference<Map<String, Object>>() {});
+            } catch (JsonProcessingException ignored) {
+            }
+        }
+        return VerificationRuleDetailRes.builder()
+                .slot(slot)
+                .endTime(s.getEndTime() != null ? s.getEndTime().format(HH_MM) : null)
+                .checkEndTime(s.getCheckEndTime() != null ? s.getCheckEndTime().format(HH_MM) : null)
+                .daysOfWeek(dayMaskToList(s.getDaysOfWeek()))
+                .timezone(s.getTimezone())
+                .frequency(f != null ? VerificationRuleDetailRes.FrequencySummary.builder()
+                        .unit(f.getUnit().name())
+                        .requiredCnt(f.getRequiredCnt())
+                        .build() : null)
+                .exemption(ex != null ? VerificationRuleDetailRes.ExemptionSummary.builder()
+                        .isEnabled(ex.getIsEnabled())
+                        .limitUnit(ex.getLimitUnit().name())
+                        .limitCnt(ex.getLimitCnt())
+                        .build() : null)
+                .methodCode(m.getMethodCode().name())
+                .methodDetails(methodDetails)
+                .build();
+    }
+
+    private String toDetailsJsonFromUpdateReq(VerificationRuleUpdateReq.Method m) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("method_code", m.getMethodCode());
+
+        if (m.getPhoto() != null) {
+            root.put("photo", Map.of(
+                    "min_files", m.getPhoto().getMinFiles(),
+                    "max_files", m.getPhoto().getMaxFiles(),
+                    "source", m.getPhoto().getSource()
+            ));
+        }
+        if (m.getGps() != null) {
+            root.put("gps", Map.of(
+                    "radius_m", m.getGps().getRadiusM(),
+                    "locations", m.getGps().getLocations(),
+                    "block_outside_time", m.getGps().getBlockOutsideTime()
+            ));
+        }
+        if (m.getGithub() != null) {
+            root.put("github", Map.of(
+                    "repo_url", m.getGithub().getRepoUrl(),
+                    "branch", m.getGithub().getBranch()
+            ));
+        }
+        try {
+            return objectMapper.writeValueAsString(root);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "method details json serialize 실패");
+        }
     }
 
     private List<String> dayMaskToList(Integer daysOfWeek) {

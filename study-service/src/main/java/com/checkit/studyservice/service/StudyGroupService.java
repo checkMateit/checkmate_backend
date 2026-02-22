@@ -12,6 +12,8 @@ import com.checkit.studyservice.dto.StudyGroupMemberRes;
 import com.checkit.studyservice.dto.StudyGroupSearchCond;
 import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
+import com.checkit.studyservice.dto.VerificationRuleDetailRes;
+import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 
 import java.util.List;
 import java.util.UUID;
@@ -43,4 +45,16 @@ public interface StudyGroupService {
 
     /** 멤버 강퇴 (그룹장만 가능) */
     void kickMember(UUID actor, Long groupId, UUID targetUserId);
+
+    /** 인증 규칙 목록 조회 (삭제되지 않은 규칙만) */
+    List<VerificationRuleDetailRes> getVerificationRules(Long groupId);
+
+    /** 인증 규칙 1건 조회 (slot: 1 또는 2) */
+    VerificationRuleDetailRes getVerificationRule(Long groupId, Integer slot);
+
+    /** 인증 규칙 1건 수정 (그룹장만) */
+    VerificationRuleDetailRes updateVerificationRule(UUID actor, Long groupId, Integer slot, VerificationRuleUpdateReq request);
+
+    /** 인증 규칙 1건 삭제 (그룹장만, soft delete) */
+    void deleteVerificationRule(UUID actor, Long groupId, Integer slot);
 }
