@@ -26,10 +26,22 @@ spring:
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/users/**
+            - Path=/users/**, /badges/**
           filters:
             - name: JwtAuthenticationFilter
 
+        - id: store-service-internal
+          uri: lb://STORE-SERVICE
+          predicates:
+            - Path=/internal/**
+
+
+        - id: store-service-public
+          uri: lb://STORE-SERVICE
+          predicates:
+            - Path=/points/**, /products/**
+          filters:
+            - name: JwtAuthenticationFilter
 
         - id: community-service
           uri: lb://COMMUNITY-SERVICE
