@@ -34,3 +34,10 @@ management:
     web:
       exposure:
         include: health,info,mappings
+
+# POC: 사진 인증 업로드 저장 경로 (로컬 디렉터리). 운영 시 S3/GCS 등으로 교체.
+# 최소/최대 파일 수, 최대 파일 크기, 허용 확장자는 photo_verification 테이블(그룹별 규칙)에서 조회합니다.
+app:
+  verification:
+    photo:
+      upload-dir: ./uploads/verification
