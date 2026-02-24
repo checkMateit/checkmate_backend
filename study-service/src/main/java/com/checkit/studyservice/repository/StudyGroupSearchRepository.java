@@ -5,6 +5,7 @@ import com.checkit.studyservice.entity.GroupStatus;
 import com.checkit.studyservice.entity.StudyGroup;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+
+import static com.querydsl.core.types.Order.ASC;
 
 import static com.checkit.studyservice.entity.QGroupVerificationMethod.groupVerificationMethod;
 import static com.checkit.studyservice.entity.QHashtag.hashtag;
@@ -88,6 +91,28 @@ public class StudyGroupSearchRepository {
         long total = totalCount != null ? totalCount : 0;
 
         return new PageImpl<>(content, pageable, total);
+    }
+
+    /**
+     * 추천 스터디: 선호 카테고리에 해당하는 모집 중 그룹을 랜덤 순으로 limit건 조회.
+     */
+    public List<StudyGroup> findRecommended(List<com.checkit.studyservice.entity.Category> categories, int limit) {
+        if (limit <= 0) return List.of();
+        BooleanExpression categoryIn = categoryIn(categories);
+        return queryFactory
+                .selectFrom(studyGroup)
+                .where(
+                        deletedAndRecruitingOnly(),
+                        categoryIn
+                )
+                .orderBy(new OrderSpecifier<>(ASC, Expressions.numberTemplate(Double.class, "function('RANDOM')")))
+                .limit(limit)
+                .fetch();
+    }
+
+    private BooleanExpression categoryIn(List<com.checkit.studyservice.entity.Category> categories) {
+        if (categories == null || categories.isEmpty()) return null;
+        return studyGroup.category.in(categories);
     }
 
     // ---- 기본 조건: 삭제·마감 제외 ----
