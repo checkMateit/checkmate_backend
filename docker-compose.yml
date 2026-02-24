@@ -1,16 +1,6 @@
 version: '3.8'
 
 services:
-  eureka-service:
-    build:
-      context: .
-      dockerfile: eureka-service/Dockerfile
-    container_name: eureka-service
-    ports:
-      - "8761:8761"
-    networks:
-      - checkmate-network
-
   user-service:
     build:
       context: .
@@ -19,6 +9,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      - SPRING_PROFILES_ACTIVE=k8s
       - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
@@ -26,7 +17,6 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -36,7 +26,6 @@ services:
     depends_on:
       - postgres
       - redis
-      - eureka-service
     networks:
       - checkmate-network
 
@@ -48,12 +37,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=k8s
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
-    depends_on:
-      - eureka-service
     networks:
       - checkmate-network
 
@@ -65,7 +52,7 @@ services:
     ports:
       - "8084:8084"
     environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=k8s
       - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
@@ -76,7 +63,6 @@ services:
     depends_on:
       - postgres
       - redis
-      - eureka-service
     networks:
       - checkmate-network
 

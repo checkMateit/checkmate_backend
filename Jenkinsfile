@@ -74,7 +74,7 @@ spec:
     stage('Detect changed services') {
       steps {
         script {
-          def allServices = ["gateway-service","user-service","community-service","store-service","study-service","eureka-service"]
+          def allServices = ["gateway-service","user-service","community-service","store-service","study-service"]
 
           def hasPrevCommit = (sh(script: 'git rev-parse --verify HEAD~1 >/dev/null 2>&1', returnStatus: true) == 0)
 

@@ -1,0 +1,22 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service-public
+          uri: ${USER_SERVICE_URL:http://user-service:8081}
+
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://user-service:8081}
+
+        - id: store-service-internal
+          uri: ${STORE_SERVICE_URL:http://store-service:8084}
+
+        - id: store-service-public
+          uri: ${STORE_SERVICE_URL:http://store-service:8084}
+
+        - id: community-service
+          uri: ${COMMUNITY_SERVICE_URL:http://community-service:8082}
+
+eureka:
+  client:
+    enabled: false
