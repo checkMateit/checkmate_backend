@@ -9,7 +9,10 @@ RUN chmod +x gradlew
 COPY . .
 
 ARG SERVICE
-RUN gradle --no-daemon :${SERVICE}:build -x test
+RUN gradle --no-daemon \
+    --max-workers=1 \
+    -Dorg.gradle.jvmargs="-Xmx512m -XX:MaxMetaspaceSize=256m" \
+    :${SERVICE}:build -x test
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app

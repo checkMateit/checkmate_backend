@@ -12,6 +12,13 @@ spec:
     image: docker:27-cli
     command: ["cat"]
     tty: true
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
     env:
     - name: DOCKER_HOST
       value: tcp://localhost:2375
@@ -22,6 +29,13 @@ spec:
     image: docker:27-dind
     securityContext:
       privileged: true
+    resources:
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
     env:
     - name: DOCKER_TLS_CERTDIR
       value: ""
