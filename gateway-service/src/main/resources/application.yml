@@ -50,6 +50,20 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
 
+        # study-service 공개 API (비로그인): GET 검색·목록, 추천, 그룹 상세만
+        - id: study-service-public
+          uri: lb://STUDY-SERVICE
+          predicates:
+            - Method=GET
+            - Path=/study-groups,/study-groups/recommended,/study-groups/*
+
+        - id: study-service
+          uri: lb://STUDY-SERVICE
+          predicates:
+            - Path=/study-groups/**
+          filters:
+            - name: JwtAuthenticationFilter
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration: ${JWT_ACCESS_EXPIRATION}
