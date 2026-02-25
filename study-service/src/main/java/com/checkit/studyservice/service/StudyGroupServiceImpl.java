@@ -665,7 +665,7 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         List<VerificationReportRes.MemberVerificationStat> memberStats = new ArrayList<>();
         for (StudyUser member : members) {
             UUID userId = member.getUserId();
-            int fulfilled = (int) fulfilledByUser.getOrDefault(userId, 0L);
+            int fulfilled = fulfilledByUser.getOrDefault(userId, 0L).intValue();
             for (LocalDate exemptDate : exemptDatesByUser.getOrDefault(userId, List.of())) {
                 fulfilled += countOpportunitiesOnDate(schedules, exemptDate);
             }
