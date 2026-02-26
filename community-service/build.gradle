@@ -31,7 +31,3 @@ dependencies {
 
 
 }
-
-bootJar {
-	enabled = false
-}
