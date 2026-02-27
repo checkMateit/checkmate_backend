@@ -30,4 +30,9 @@ dependencies {
 
 
 
+
+}
+
+bootJar {
+	enabled = true
 }
