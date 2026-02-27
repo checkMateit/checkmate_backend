@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   postgres:
     image: postgres:latest
     container_name: sample-postgres
@@ -34,7 +35,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
@@ -44,6 +44,9 @@ services:
       - checkmate-network
 
   community-service:
+  
+  user-service:
+
     build:
       context: .
       dockerfile: community-service/Dockerfile
@@ -51,7 +54,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=k8s
       - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
@@ -59,7 +62,6 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -68,7 +70,7 @@ services:
       - REDIS_PORT=${REDIS_PORT}
     depends_on:
       - postgres
-      - eureka-service
+      - redis
     networks:
       - checkmate-network
 
@@ -80,13 +82,17 @@ services:
     ports:
       - "8083:8083"
     environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
     depends_on:
       - postgres
       - eureka-service
+      - SPRING_PROFILES_ACTIVE=k8s
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+
     networks:
       - checkmate-network
 
@@ -98,7 +104,7 @@ services:
     ports:
       - "8084:8084"
     environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=k8s
       - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
@@ -109,7 +115,6 @@ services:
     depends_on:
       - postgres
       - redis
-      - eureka-service
     networks:
       - checkmate-network
 
@@ -136,15 +141,7 @@ services:
     networks:
       - checkmate-network
 
-  eureka-service:
-    build:
-      context: .
-      dockerfile: eureka-service/Dockerfile
-    container_name: eureka-service
-    ports:
-      - "8761:8761"
-    networks:
-      - checkmate-network
+ 
 
 volumes:
   redis_data:
