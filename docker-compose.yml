@@ -1,13 +1,58 @@
 version: '3.8'
 
 services:
-  user-service:
+
+  postgres:
+    image: postgres:latest
+    container_name: sample-postgres
+    ports:
+      - ${DB_LOCAL_PORT}:${DB_PORT}
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./postgres-data:/var/lib/postgresql
+    networks:
+      - checkmate-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: checkmate-redis
+    ports:
+      - "${REDIS_LOCAL_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - checkmate-network
+
+  gateway-service:
     build:
       context: .
-      dockerfile: user-service/Dockerfile
-    container_name: user-service
+      dockerfile: gateway-service/Dockerfile
+    container_name: gateway-service
     ports:
-      - "8081:8081"
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+    depends_on:
+      - eureka-service
+    networks:
+      - checkmate-network
+
+  community-service:
+  
+  user-service:
+
+    build:
+      context: .
+      dockerfile: community-service/Dockerfile
+    container_name: community-service
+    ports:
+      - "8082:8082"
     environment:
       - SPRING_PROFILES_ACTIVE=k8s
       - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
@@ -29,18 +74,25 @@ services:
     networks:
       - checkmate-network
 
-  gateway-service:
+  study-service:
     build:
       context: .
-      dockerfile: gateway-service/Dockerfile
-    container_name: gateway-service
+      dockerfile: study-service/Dockerfile
+    container_name: study-service
     ports:
-      - "8080:8080"
+      - "8083:8083"
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      - postgres
+      - eureka-service
       - SPRING_PROFILES_ACTIVE=k8s
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+
     networks:
       - checkmate-network
 
@@ -66,30 +118,30 @@ services:
     networks:
       - checkmate-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: checkmate-redis
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: user-service
     ports:
-      - "${REDIS_LOCAL_PORT}:${REDIS_PORT}"
-    volumes:
-      - redis_data:/data
-    restart: always
-    networks:
-      - checkmate-network
-  
-  postgres:
-    image: postgres:latest
-    container_name: sample-postgres
-    ports:
-      - ${DB_LOCAL_PORT}:${DB_PORT}
+      - "8085:8085"
     environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USERNAME}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - ./postgres-data:/var/lib/postgresql
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_REDIS_HOST=redis
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+    depends_on:
+      - postgres
+      - redis
+      - eureka-service
     networks:
       - checkmate-network
+
+ 
 
 volumes:
   redis_data:
