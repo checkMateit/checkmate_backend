@@ -16,29 +16,46 @@ import com.checkit.studyservice.dto.StudyGroupUpdateReq;
 import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 import com.checkit.studyservice.dto.VerificationRuleDetailRes;
 import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
+import com.checkit.studyservice.dto.VerificationReportRes;
+import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
+import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
+import com.checkit.studyservice.dto.GpsLocationRes;
+import com.checkit.studyservice.dto.GpsLocationCreateReq;
 import com.checkit.studyservice.entity.*;
 import com.checkit.studyservice.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Service
 @RequiredArgsConstructor
@@ -57,7 +74,17 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     private final StudyUserRepository studyUserRepository;
     private final StudyGroupSearchRepository studyGroupSearchRepository;
     private final GroupInvitationRepository groupInvitationRepository;
+    private final UserFavCategoriesRepository userFavCategoriesRepository;
+    private final UserVerificationRecordRepository userVerificationRecordRepository;
+    private final ExemptionRequestRepository exemptionRequestRepository;
+    private final VerificationPhotoSubmissionRepository verificationPhotoSubmissionRepository;
+    private final PhotoVerificationRepository photoVerificationRepository;
+    private final GpsSubmissionRepository gpsSubmissionRepository;
+    private final GpsLocationRepository gpsLocationRepository;
     private final ObjectMapper objectMapper;
+
+    @Value("${app.verification.photo.upload-dir:./uploads/verification}")
+    private String photoUploadDir;
 
     private static final String INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int INVITE_CODE_LENGTH = 8;
@@ -290,6 +317,122 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<StudyGroupCardRes> getRecommendedStudies(UUID userId, int size) {
+        if (userId == null) {
+            return List.of();
+        }
+        int limit = Math.min(Math.max(size, 1), 50);
+        List<Category> categories = resolveFavCategories(userId);
+
+        List<StudyGroup> content = studyGroupSearchRepository.findRecommended(categories, limit);
+        if (content.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> groupIds = content.stream().map(StudyGroup::getGroupId).toList();
+        List<GroupVerificationSchedule> schedules = scheduleRepository.findAllByGroupIdIn(groupIds).stream()
+                .filter(s -> !s.isDeleted()).toList();
+        List<GroupVerificationMethod> methods = methodRepository.findAllByGroupIdIn(groupIds).stream()
+                .filter(m -> !m.isDeleted()).toList();
+        List<StudyGroupTag> tags = studyGroupTagRepository.findAllByGroupIdIn(groupIds).stream()
+                .filter(t -> !t.isDeleted()).toList();
+        Set<Long> hashtagIds = tags.stream().map(StudyGroupTag::getHashtagId).collect(Collectors.toSet());
+        Map<Long, String> hashtagNameById = new HashMap<>();
+        if (!hashtagIds.isEmpty()) {
+            hashtagRepository.findAllById(hashtagIds).forEach(h -> hashtagNameById.put(h.getHashtagId(), h.getName()));
+        }
+
+        Map<Long, List<GroupVerificationSchedule>> schedulesByGroup = schedules.stream().collect(Collectors.groupingBy(GroupVerificationSchedule::getGroupId));
+        Map<Long, List<GroupVerificationMethod>> methodsByGroup = methods.stream().collect(Collectors.groupingBy(GroupVerificationMethod::getGroupId));
+        Map<Long, List<String>> hashtagsByGroup = tags.stream()
+                .collect(Collectors.groupingBy(StudyGroupTag::getGroupId,
+                        Collectors.mapping(t -> hashtagNameById.getOrDefault(t.getHashtagId(), ""), Collectors.toList())))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().filter(s -> !s.isBlank()).toList()));
+
+        return content.stream()
+                .map(g -> toCardRes(g,
+                        schedulesByGroup.getOrDefault(g.getGroupId(), List.of()),
+                        methodsByGroup.getOrDefault(g.getGroupId(), List.of()),
+                        hashtagsByGroup.getOrDefault(g.getGroupId(), List.of())))
+                .toList();
+    }
+
+    /** 사용자 선호 카테고리 조회. 없거나 미설정 시 전체 카테고리 반환. */
+    private List<Category> resolveFavCategories(UUID userId) {
+        if (userId == null) {
+            return Arrays.asList(Category.values());
+        }
+        Optional<UserFavCategories> fav = userFavCategoriesRepository.findById(userId);
+        if (fav.isEmpty()) {
+            return Arrays.asList(Category.values());
+        }
+        UserFavCategories u = fav.get();
+        List<Category> list = new ArrayList<>();
+        for (String s : Arrays.asList(u.getFavCategory1(), u.getFavCategory2(), u.getFavCategory3())) {
+            if (s != null && !s.isBlank()) {
+                try {
+                    list.add(Category.valueOf(s.trim().toUpperCase()));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        }
+        return list.isEmpty() ? Arrays.asList(Category.values()) : list;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StudyGroupCardRes> getMyStudyGroups(UUID actor) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        List<StudyUser> memberships = studyUserRepository.findAllByUserIdAndStatusOrderByJoinedAtDesc(actor, StudyUserStatus.ACTIVE);
+        List<Long> groupIds = memberships.stream().map(StudyUser::getStudyId).distinct().toList();
+        if (groupIds.isEmpty()) {
+            return List.of();
+        }
+        List<StudyGroup> allGroups = studyGroupRepository.findAllById(groupIds);
+        List<StudyGroup> content = allGroups.stream()
+                .filter(g -> !g.isDeleted())
+                .sorted(Comparator.comparing(g -> {
+                    int idx = groupIds.indexOf(g.getGroupId());
+                    return idx >= 0 ? idx : Integer.MAX_VALUE;
+                }))
+                .toList();
+        if (content.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> orderedIds = content.stream().map(StudyGroup::getGroupId).toList();
+        List<GroupVerificationSchedule> schedules = scheduleRepository.findAllByGroupIdIn(orderedIds).stream()
+                .filter(s -> !s.isDeleted()).toList();
+        List<GroupVerificationMethod> methods = methodRepository.findAllByGroupIdIn(orderedIds).stream()
+                .filter(m -> !m.isDeleted()).toList();
+        List<StudyGroupTag> tags = studyGroupTagRepository.findAllByGroupIdIn(orderedIds).stream()
+                .filter(t -> !t.isDeleted()).toList();
+        Set<Long> hashtagIds = tags.stream().map(StudyGroupTag::getHashtagId).collect(Collectors.toSet());
+        Map<Long, String> hashtagNameById = new HashMap<>();
+        if (!hashtagIds.isEmpty()) {
+            hashtagRepository.findAllById(hashtagIds).forEach(h -> hashtagNameById.put(h.getHashtagId(), h.getName()));
+        }
+        Map<Long, List<GroupVerificationSchedule>> schedulesByGroup = schedules.stream().collect(Collectors.groupingBy(GroupVerificationSchedule::getGroupId));
+        Map<Long, List<GroupVerificationMethod>> methodsByGroup = methods.stream().collect(Collectors.groupingBy(GroupVerificationMethod::getGroupId));
+        Map<Long, List<String>> hashtagsByGroup = tags.stream()
+                .collect(Collectors.groupingBy(StudyGroupTag::getGroupId,
+                        Collectors.mapping(t -> hashtagNameById.getOrDefault(t.getHashtagId(), ""), Collectors.toList())))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().filter(s -> !s.isBlank()).toList()));
+
+        return content.stream()
+                .map(g -> toCardRes(g,
+                        schedulesByGroup.getOrDefault(g.getGroupId(), List.of()),
+                        methodsByGroup.getOrDefault(g.getGroupId(), List.of()),
+                        hashtagsByGroup.getOrDefault(g.getGroupId(), List.of())))
+                .toList();
+    }
+
+    @Override
     public JoinRes joinPublic(UUID actor, Long groupId) {
         if (actor == null) {
             throw new BusinessException(CommonCode.UNAUTHORIZED);
@@ -463,6 +606,469 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         studyUserRepository.delete(target);
         group.setCurrentMembers(group.getCurrentMembers() - 1);
         studyGroupRepository.save(group);
+    }
+
+    @Override
+    public void leaveStudyGroup(UUID actor, Long groupId) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        StudyUser member = studyUserRepository.findById(new StudyUserId(actor, groupId))
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 그룹의 멤버가 아닙니다."));
+        if (member.getRole() == StudyUserRole.Leader) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "그룹장은 탈퇴할 수 없습니다. 그룹을 삭제하거나 방장을 위임해 주세요.");
+        }
+        studyUserRepository.delete(member);
+        group.setCurrentMembers(group.getCurrentMembers() - 1);
+        studyGroupRepository.save(group);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VerificationReportRes getVerificationReport(Long groupId, LocalDate endDate) {
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+
+        LocalDate startDate = group.getStartDate() != null ? group.getStartDate() : endDate;
+        if (startDate.isAfter(endDate)) {
+            startDate = endDate;
+        }
+
+        List<GroupVerificationSchedule> schedules = scheduleRepository.findAllByGroupId(groupId).stream()
+                .filter(s -> !s.isDeleted())
+                .toList();
+
+        int opportunityCount = countOpportunitiesInRange(schedules, startDate, endDate);
+
+        List<StudyUser> members = studyUserRepository.findAllByStudyId(groupId).stream()
+                .filter(m -> m.getStatus() == StudyUserStatus.ACTIVE)
+                .toList();
+
+        List<UserVerificationRecord> records = userVerificationRecordRepository.findByGroupIdAndVerificationDateBetween(groupId, startDate, endDate);
+        Map<UUID, Long> fulfilledByUser = records.stream()
+                .collect(Collectors.groupingBy(UserVerificationRecord::getUserId, Collectors.counting()));
+
+        List<ExemptionRequest> approvedExemptions = exemptionRequestRepository.findByGroupIdAndStatusAndDateBetween(
+                groupId, ExemptionRequest.ExemptionRequestStatus.APPROVED, startDate, endDate);
+        Map<UUID, List<LocalDate>> exemptDatesByUser = approvedExemptions.stream()
+                .collect(Collectors.groupingBy(ExemptionRequest::getUserId,
+                        Collectors.mapping(ExemptionRequest::getDate, Collectors.toList())));
+
+        List<VerificationReportRes.MemberVerificationStat> memberStats = new ArrayList<>();
+        for (StudyUser member : members) {
+            UUID userId = member.getUserId();
+            int fulfilled = fulfilledByUser.getOrDefault(userId, 0L).intValue();
+            for (LocalDate exemptDate : exemptDatesByUser.getOrDefault(userId, List.of())) {
+                fulfilled += countOpportunitiesOnDate(schedules, exemptDate);
+            }
+            double percentage = opportunityCount > 0
+                    ? BigDecimal.valueOf(fulfilled * 100.0 / opportunityCount).setScale(2, RoundingMode.HALF_UP).doubleValue()
+                    : 0.0;
+
+            memberStats.add(VerificationReportRes.MemberVerificationStat.builder()
+                    .userId(userId)
+                    .role(member.getRole().name())
+                    .fulfilledCount(fulfilled)
+                    .opportunityCount(opportunityCount)
+                    .percentage(percentage)
+                    .build());
+        }
+
+        return VerificationReportRes.builder()
+                .startDate(startDate)
+                .endDate(endDate)
+                .opportunityCount(opportunityCount)
+                .members(memberStats)
+                .build();
+    }
+
+    @Override
+    public VerificationPhotoSubmitRes submitPhotoVerification(UUID actor, Long groupId, Integer slot,
+                                                              LocalDate verificationDate, MultipartFile[] files) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        if (slot == null || (slot != 1 && slot != 2)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2여야 합니다.");
+        }
+        LocalDate date = verificationDate != null ? verificationDate : LocalDate.now();
+        if (date.isAfter(LocalDate.now())) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "미래 날짜에는 인증을 제출할 수 없습니다.");
+        }
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "해당 스터디 그룹의 멤버만 인증을 제출할 수 있습니다.");
+        }
+        StudyUser member = studyUserRepository.findAllByStudyId(groupId).stream()
+                .filter(m -> m.getUserId().equals(actor) && m.getStatus() == StudyUserStatus.ACTIVE)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(CommonCode.FORBIDDEN, "활동 중인 멤버만 인증을 제출할 수 있습니다."));
+
+        GroupVerificationMethod method = methodRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙이 없습니다."));
+        if (method.getDeletedAt() != null || method.getMethodCode() != VerificationMethodCode.PHOTO) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 슬롯은 사진(PHOTO) 인증 방식이 아닙니다.");
+        }
+
+        GroupVerificationSchedule schedule = scheduleRepository.findAllByGroupId(groupId).stream()
+                .filter(s -> !s.isDeleted() && s.getSlot().equals(slot))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 일정이 없습니다."));
+
+        int dayOfWeekBit = date.getDayOfWeek().getValue() - 1;
+        int mask = 1 << dayOfWeekBit;
+        if (schedule.getDaysOfWeek() == null || (schedule.getDaysOfWeek() & mask) == 0) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 날짜는 인증 일정에 포함되지 않습니다.");
+        }
+
+        ZoneId zoneId = ZoneId.of(schedule.getTimezone() != null ? schedule.getTimezone() : "Asia/Seoul");
+        ZonedDateTime nowInZone = ZonedDateTime.now(zoneId);
+        LocalDateTime deadline = date.atTime(schedule.getEndTime() != null ? schedule.getEndTime() : LocalTime.MAX);
+        if (nowInZone.toLocalDateTime().isAfter(deadline)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "인증 종료 시간("
+                    + (schedule.getEndTime() != null ? schedule.getEndTime().format(HH_MM) : "23:59") + ")이 지나 제출할 수 없습니다.");
+        }
+
+        if (userVerificationRecordRepository.existsByUserIdAndGroupIdAndSlotAndVerificationDate(actor, groupId, slot, date)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 날짜·슬롯에 이미 인증을 제출했습니다.");
+        }
+
+        PhotoVerification photoRule = photoVerificationRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 사진 인증 상세 규칙(photo_verification)이 없습니다."));
+
+        int minFiles = Math.max(1, photoRule.getMinFiles() != null ? photoRule.getMinFiles() : 1);
+        int maxFiles = Math.min(50, Math.max(photoRule.getMaxFiles() != null ? photoRule.getMaxFiles() : 10, minFiles));
+        int maxSizeMb = photoRule.getMaxSize() != null && photoRule.getMaxSize() > 0 ? photoRule.getMaxSize() : 10;
+        String allowedExtensionsStr = photoRule.getAllowedExtensions() != null && !photoRule.getAllowedExtensions().isBlank()
+                ? photoRule.getAllowedExtensions() : "jpg,jpeg,png,webp";
+
+        List<MultipartFile> fileList = files != null ? Arrays.stream(files).filter(f -> f != null && !f.isEmpty()).toList() : List.of();
+        if (fileList.size() < minFiles || fileList.size() > maxFiles) {
+            throw new BusinessException(CommonCode.BAD_REQUEST,
+                    "사진 개수는 " + minFiles + "~" + maxFiles + "장이어야 합니다. (현재 " + fileList.size() + "장)");
+        }
+
+        Set<String> allowedExt = Arrays.stream(allowedExtensionsStr.split(","))
+                .map(String::trim).map(String::toLowerCase).filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+        long maxBytes = (long) maxSizeMb * 1024 * 1024;
+        List<String> savedPaths = new ArrayList<>();
+        Path baseDir = Path.of(photoUploadDir).toAbsolutePath().normalize();
+        String dirSegment = groupId + "/" + actor + "/" + date + "/" + slot;
+        Path targetDir = baseDir.resolve(dirSegment);
+        try {
+            Files.createDirectories(targetDir);
+        } catch (IOException e) {
+            throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "업로드 디렉터리 생성 실패.");
+        }
+        for (MultipartFile file : fileList) {
+            String originalName = file.getOriginalFilename();
+            String ext = originalName != null && originalName.contains(".")
+                    ? originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase()
+                    : "";
+            if (!allowedExt.contains(ext)) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "허용 확장자가 아닙니다: " + allowedExtensionsStr);
+            }
+            if (file.getSize() > maxBytes) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "파일 크기는 " + maxSizeMb + "MB 이하여야 합니다.");
+            }
+            String fileName = UUID.randomUUID().toString().replace("-", "") + "." + ext;
+            Path targetFile = targetDir.resolve(fileName);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, targetFile);
+            } catch (IOException e) {
+                throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "파일 저장 실패.");
+            }
+            savedPaths.add(dirSegment + "/" + fileName);
+        }
+
+        UserVerificationRecord record = UserVerificationRecord.builder()
+                .userId(actor)
+                .groupId(groupId)
+                .slot(slot)
+                .verificationDate(date)
+                .createdAt(OffsetDateTime.now())
+                .build();
+        record = userVerificationRecordRepository.save(record);
+
+        for (String path : savedPaths) {
+            VerificationPhotoSubmission sub = VerificationPhotoSubmission.builder()
+                    .recordId(record.getRecordId())
+                    .filePath(path)
+                    .createdAt(OffsetDateTime.now())
+                    .build();
+            verificationPhotoSubmissionRepository.save(sub);
+        }
+
+        return VerificationPhotoSubmitRes.builder()
+                .recordId(record.getRecordId())
+                .groupId(groupId)
+                .slot(slot)
+                .verificationDate(date)
+                .photoCount(savedPaths.size())
+                .filePaths(savedPaths)
+                .build();
+    }
+
+    @Override
+    public GpsVerificationSubmitRes submitGpsVerification(UUID actor, Long groupId, Integer slot,
+                                                          LocalDate verificationDate, BigDecimal latitude, BigDecimal longitude) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        if (slot == null || (slot != 1 && slot != 2)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2여야 합니다.");
+        }
+        if (latitude == null || longitude == null) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "위도와 경도는 필수입니다.");
+        }
+        LocalDate date = verificationDate != null ? verificationDate : LocalDate.now();
+        if (date.isAfter(LocalDate.now())) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "미래 날짜에는 인증을 제출할 수 없습니다.");
+        }
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "해당 스터디 그룹의 멤버만 인증을 제출할 수 있습니다.");
+        }
+        studyUserRepository.findAllByStudyId(groupId).stream()
+                .filter(m -> m.getUserId().equals(actor) && m.getStatus() == StudyUserStatus.ACTIVE)
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(CommonCode.FORBIDDEN, "활동 중인 멤버만 인증을 제출할 수 있습니다."));
+
+        GroupVerificationMethod method = methodRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙이 없습니다."));
+        if (method.getDeletedAt() != null || method.getMethodCode() != VerificationMethodCode.GPS) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 슬롯은 GPS 인증 방식이 아닙니다.");
+        }
+
+        GroupVerificationSchedule schedule = scheduleRepository.findAllByGroupId(groupId).stream()
+                .filter(s -> !s.isDeleted() && s.getSlot().equals(slot))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 일정이 없습니다."));
+
+        int dayOfWeekBit = date.getDayOfWeek().getValue() - 1;
+        int mask = 1 << dayOfWeekBit;
+        if (schedule.getDaysOfWeek() == null || (schedule.getDaysOfWeek() & mask) == 0) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 날짜는 인증 일정에 포함되지 않습니다.");
+        }
+
+        ZoneId zoneId = ZoneId.of(schedule.getTimezone() != null ? schedule.getTimezone() : "Asia/Seoul");
+        ZonedDateTime nowInZone = ZonedDateTime.now(zoneId);
+        LocalDateTime deadline = date.atTime(schedule.getEndTime() != null ? schedule.getEndTime() : LocalTime.MAX);
+        if (nowInZone.toLocalDateTime().isAfter(deadline)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "인증 종료 시간("
+                    + (schedule.getEndTime() != null ? schedule.getEndTime().format(HH_MM) : "23:59") + ")이 지나 제출할 수 없습니다.");
+        }
+
+        if (userVerificationRecordRepository.existsByUserIdAndGroupIdAndSlotAndVerificationDate(actor, groupId, slot, date)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 날짜·슬롯에 이미 인증을 제출했습니다.");
+        }
+
+        Map<String, Object> gpsConfig = parseGpsDetails(method.getDetailsJson());
+        if (gpsConfig == null) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 GPS 인증 상세 설정이 없습니다.");
+        }
+        String radiusMode = Optional.ofNullable(gpsConfig.get("radius_mode")).map(Object::toString).map(String::toUpperCase).orElse("COMMON");
+        Number radiusMObj = (Number) gpsConfig.get("radius_m");
+        int radiusM = radiusMObj != null ? radiusMObj.intValue() : 100;
+        if (radiusM <= 0) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "GPS 반경(radius_m)이 유효하지 않습니다.");
+        }
+
+        List<TargetLocation> targetLocations = new ArrayList<>();
+        if ("PER_LOCATION".equals(radiusMode)) {
+            List<GpsLocation> userLocations = gpsLocationRepository.findByGroupIdAndUserIdAndIsActiveTrueOrderByLocationId(groupId, actor);
+            if (userLocations.isEmpty()) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "등록된 내 위치가 없습니다. GPS 인증을 위해 위치를 등록해 주세요.");
+            }
+            for (GpsLocation loc : userLocations) {
+                targetLocations.add(new TargetLocation(loc.getLatitude().doubleValue(), loc.getLongitude().doubleValue()));
+            }
+        } else {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> locationsList = (List<Map<String, Object>>) gpsConfig.get("locations");
+            if (locationsList == null || locationsList.isEmpty()) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "GPS 공통 위치가 설정되지 않았습니다.");
+            }
+            for (Map<String, Object> loc : locationsList) {
+                Object lat = loc.get("latitude");
+                Object lng = loc.get("longitude");
+                if (lat != null && lng != null) {
+                    double latD = lat instanceof Number ? ((Number) lat).doubleValue() : Double.parseDouble(lat.toString());
+                    double lngD = lng instanceof Number ? ((Number) lng).doubleValue() : Double.parseDouble(lng.toString());
+                    targetLocations.add(new TargetLocation(latD, lngD));
+                }
+            }
+            if (targetLocations.isEmpty()) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "GPS 공통 위치가 유효하지 않습니다.");
+            }
+        }
+
+        double submitLat = latitude.doubleValue();
+        double submitLng = longitude.doubleValue();
+        boolean withinRange = targetLocations.stream()
+                .anyMatch(t -> haversineMeters(submitLat, submitLng, t.lat, t.lng) <= radiusM);
+
+        if (!withinRange) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "설정된 인증 반경(" + radiusM + "m) 안에 위치해 있지 않습니다.");
+        }
+
+        UserVerificationRecord record = UserVerificationRecord.builder()
+                .userId(actor)
+                .groupId(groupId)
+                .slot(slot)
+                .verificationDate(date)
+                .createdAt(OffsetDateTime.now())
+                .build();
+        record = userVerificationRecordRepository.save(record);
+
+        GpsSubmission gpsSubmission = GpsSubmission.builder()
+                .recordId(record.getRecordId())
+                .latitude(latitude)
+                .longitude(longitude)
+                .submittedAt(OffsetDateTime.now())
+                .build();
+        gpsSubmissionRepository.save(gpsSubmission);
+
+        return GpsVerificationSubmitRes.builder()
+                .recordId(record.getRecordId())
+                .groupId(groupId)
+                .slot(slot)
+                .verificationDate(date)
+                .latitude(latitude)
+                .longitude(longitude)
+                .build();
+    }
+
+    /** details_json에서 gps 객체 추출 (없으면 null) */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseGpsDetails(String detailsJson) {
+        if (detailsJson == null || detailsJson.isBlank()) return null;
+        try {
+            Map<String, Object> root = objectMapper.readValue(detailsJson, new TypeReference<Map<String, Object>>() {});
+            return (Map<String, Object>) root.get("gps");
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    /** Haversine 거리(미터). 위·경도 degree 기준 */
+    private static double haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6_371_000; // Earth radius in meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    private static class TargetLocation {
+        final double lat;
+        final double lng;
+        TargetLocation(double lat, double lng) { this.lat = lat; this.lng = lng; }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GpsLocationRes> getMyGpsLocations(UUID actor, Long groupId, Integer slot) {
+        if (actor == null) throw new BusinessException(CommonCode.UNAUTHORIZED);
+        if (slot == null || (slot != 1 && slot != 2)) throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2여야 합니다.");
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "해당 스터디 그룹의 멤버만 조회할 수 있습니다.");
+        }
+        GroupVerificationMethod method = methodRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙이 없습니다."));
+        if (method.getDeletedAt() != null || method.getMethodCode() != VerificationMethodCode.GPS) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 슬롯은 GPS 인증 방식이 아닙니다.");
+        }
+        return gpsLocationRepository.findByGroupIdAndUserIdAndIsActiveTrueOrderByLocationId(groupId, actor).stream()
+                .map(loc -> GpsLocationRes.builder()
+                        .locationId(loc.getLocationId())
+                        .groupId(loc.getGroupId())
+                        .name(loc.getName())
+                        .latitude(loc.getLatitude())
+                        .longitude(loc.getLongitude())
+                        .isActive(loc.getIsActive())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public GpsLocationRes addMyGpsLocation(UUID actor, Long groupId, Integer slot, GpsLocationCreateReq request) {
+        if (actor == null) throw new BusinessException(CommonCode.UNAUTHORIZED);
+        if (slot == null || (slot != 1 && slot != 2)) throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2여야 합니다.");
+        if (request == null || request.getName() == null || request.getLatitude() == null || request.getLongitude() == null) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "이름, 위도, 경도는 필수입니다.");
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "해당 스터디 그룹의 멤버만 위치를 등록할 수 있습니다.");
+        }
+        GroupVerificationMethod method = methodRepository.findByGroupIdAndSlot(groupId, slot)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 인증 규칙이 없습니다."));
+        if (method.getDeletedAt() != null || method.getMethodCode() != VerificationMethodCode.GPS) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "해당 슬롯은 GPS 인증 방식이 아닙니다.");
+        }
+        GpsLocation entity = GpsLocation.builder()
+                .groupId(groupId)
+                .userId(actor)
+                .name(request.getName().trim())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .isActive(true)
+                .build();
+        entity = gpsLocationRepository.save(entity);
+        return GpsLocationRes.builder()
+                .locationId(entity.getLocationId())
+                .groupId(entity.getGroupId())
+                .name(entity.getName())
+                .latitude(entity.getLatitude())
+                .longitude(entity.getLongitude())
+                .isActive(entity.getIsActive())
+                .build();
+    }
+
+    /** 기간 내 인증 기회 수: 각 날짜·슬롯별로 schedule의 days_of_week에 해당하면 1회 */
+    private int countOpportunitiesInRange(List<GroupVerificationSchedule> schedules, LocalDate start, LocalDate end) {
+        int count = 0;
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            count += countOpportunitiesOnDate(schedules, d);
+        }
+        return count;
+    }
+
+    /** 해당 날짜에 적용되는 슬롯 수 (요일 비트마스크: MON=0, TUE=1, ..., SUN=6) */
+    private int countOpportunitiesOnDate(List<GroupVerificationSchedule> schedules, LocalDate date) {
+        int dayOfWeekBit = date.getDayOfWeek().getValue() - 1; // Monday=0, ..., Sunday=6
+        int mask = 1 << dayOfWeekBit;
+        return (int) schedules.stream()
+                .filter(s -> s.getDaysOfWeek() != null && (s.getDaysOfWeek() & mask) != 0)
+                .count();
     }
 
     private String generateInviteCode() {
@@ -703,11 +1309,13 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             ));
         }
         if (m.getGps() != null) {
-            root.put("gps", Map.of(
-                    "radius_m", m.getGps().getRadiusM(),
-                    "locations", m.getGps().getLocations(),
-                    "block_outside_time", m.getGps().getBlockOutsideTime()
-            ));
+            Map<String, Object> gpsMap = new java.util.LinkedHashMap<>();
+            gpsMap.put("radius_mode", m.getGps().getRadiusMode() != null && !m.getGps().getRadiusMode().isBlank()
+                    ? m.getGps().getRadiusMode().toUpperCase(java.util.Locale.ROOT) : "COMMON");
+            gpsMap.put("radius_m", m.getGps().getRadiusM());
+            gpsMap.put("locations", m.getGps().getLocations() != null ? m.getGps().getLocations() : List.of());
+            gpsMap.put("block_outside_time", m.getGps().getBlockOutsideTime());
+            root.put("gps", gpsMap);
         }
         if (m.getGithub() != null) {
             root.put("github", Map.of(
@@ -914,11 +1522,13 @@ public class StudyGroupServiceImpl implements StudyGroupService {
             ));
         }
         if (m.getGps() != null) {
-            root.put("gps", Map.of(
-                    "radius_m", m.getGps().getRadiusM(),
-                    "locations", m.getGps().getLocations(),
-                    "block_outside_time", m.getGps().getBlockOutsideTime()
-            ));
+            Map<String, Object> gpsMap = new java.util.LinkedHashMap<>();
+            gpsMap.put("radius_mode", m.getGps().getRadiusMode() != null && !m.getGps().getRadiusMode().isBlank()
+                    ? m.getGps().getRadiusMode().toUpperCase(java.util.Locale.ROOT) : "COMMON");
+            gpsMap.put("radius_m", m.getGps().getRadiusM());
+            gpsMap.put("locations", m.getGps().getLocations() != null ? m.getGps().getLocations() : List.of());
+            gpsMap.put("block_outside_time", m.getGps().getBlockOutsideTime());
+            root.put("gps", gpsMap);
         }
         if (m.getGithub() != null) {
             root.put("github", Map.of(
