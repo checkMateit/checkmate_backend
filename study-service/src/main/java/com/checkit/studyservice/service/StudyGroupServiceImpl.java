@@ -32,6 +32,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -82,6 +84,7 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     private final GpsSubmissionRepository gpsSubmissionRepository;
     private final GpsLocationRepository gpsLocationRepository;
     private final ObjectMapper objectMapper;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Value("${app.verification.photo.upload-dir:./uploads/verification}")
     private String photoUploadDir;
@@ -575,14 +578,39 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
             throw new BusinessException(CommonCode.FORBIDDEN, "그룹 멤버만 목록을 조회할 수 있습니다.");
         }
-        return studyUserRepository.findAllByStudyId(groupId).stream()
+        List<StudyUser> members = studyUserRepository.findAllByStudyId(groupId);
+        Map<UUID, String> nicknameMap = resolveNicknames(
+                members.stream().map(StudyUser::getUserId).distinct().toList());
+
+        return members.stream()
                 .map(m -> StudyGroupMemberRes.builder()
                         .userId(m.getUserId())
+                        .nickname(nicknameMap.get(m.getUserId()))
                         .role(m.getRole().name())
                         .status(m.getStatus().name())
                         .joinedAt(m.getJoinedAt())
                         .build())
                 .toList();
+    }
+
+    /**
+     * users 테이블에서 user_id 목록에 해당하는 nickname을 조회합니다.
+     * (study-service와 user-service가 동일 DB를 사용하는 환경 기준)
+     */
+    private Map<UUID, String> resolveNicknames(List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource("userIds", userIds);
+        List<Map.Entry<UUID, String>> rows = namedParameterJdbcTemplate.query(
+                "SELECT user_id, nickname FROM users WHERE user_id IN (:userIds)",
+                params,
+                (rs, rowNum) -> new AbstractMap.SimpleEntry<>(
+                        rs.getObject("user_id", UUID.class),
+                        rs.getString("nickname")));
+        return rows.stream()
+                .filter(e -> e.getKey() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
     }
 
     @Override
