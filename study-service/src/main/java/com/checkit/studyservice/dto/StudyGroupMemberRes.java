@@ -13,6 +13,7 @@ import java.util.UUID;
 public class StudyGroupMemberRes {
 
     private UUID userId;
+    private String nickname;
     private String role;
     private String status;
     private LocalDateTime joinedAt;
