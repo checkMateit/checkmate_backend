@@ -34,13 +34,14 @@ public class InquiryController {
     @GetMapping("/{inquiryId}")
     public ApiResponse<InquiryDetailRes> getInquiryDetail(
             @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role,
             @PathVariable Long inquiryId) {
 
         // TODO: JWT 붙이면 여기서 userId 꺼내기
         UUID userUuid = UUID.fromString(userId);
 
 
-        return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, userUuid));
+        return ApiResponse.success(inquiryService.getInquiryDetail(inquiryId, userUuid, role));
     }
     @PostMapping
     public ApiResponse<InquiryDetailRes> createInquiry(
