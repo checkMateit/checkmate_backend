@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,7 +34,9 @@ public class UserService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        String provider = socialRepository.findByUser(user)
+        String initialProvider = socialRepository.findAllByUser(user).stream()
+                .filter(s -> !s.isDeleted())
+                .min(Comparator.comparing(SocialEntity::getCreatedAt)) // 가장 과거의 데이터
                 .map(SocialEntity::getProvider)
                 .orElse("UNKNOWN");
 
@@ -44,7 +47,7 @@ public class UserService {
                 .gender(user.getGender())
                 .birthdate(user.getBirthdate())
                 .phoneNumber(user.getPhoneNumber())
-                .socialType(provider)
+                .socialType(initialProvider)
                 .build();
     }
 
