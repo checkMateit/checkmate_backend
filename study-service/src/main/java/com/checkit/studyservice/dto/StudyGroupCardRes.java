@@ -22,6 +22,8 @@ public class StudyGroupCardRes {
     private List<String> methodCodes;
     /** 그룹명 */
     private String title;
+    /** 그룹 설명 */
+    private String description;
     /** 썸네일 타입 (예: DEFAULT, CUSTOM) */
     private String thumbnailType;
     /** 썸네일 URL (thumbnailType이 CUSTOM일 때 사용) */
