@@ -85,10 +85,10 @@ public class StudyGroupCreateReq {
         @NotNull
         private Frequency frequency;
 
+        /** 규칙당 인증 방식 1개 (PHOTO/CHECKLIST/GPS/GITHUB) */
         @Valid
         @NotNull
-        @Size(min = 1)
-        private List<Method> methods;
+        private Method method;
 
         @Valid
         private Exemption exemption;
@@ -163,10 +163,12 @@ public class StudyGroupCreateReq {
     @AllArgsConstructor
     @Builder
     public static class Gps {
+        /** COMMON: 그룹 공통 위치 목록(details_json.locations). PER_LOCATION: 멤버별 위치(gps_locations) */
+        private String radiusMode; // COMMON | PER_LOCATION, 미지정 시 COMMON
         @NotNull
         @Min(1)
         private Integer radiusM;
-        @NotEmpty
+        /** COMMON일 때 필수. PER_LOCATION일 때는 멤버별 gps_locations 사용 */
         private List<Location> locations;
         @NotNull
         private Boolean blockOutsideTime;
