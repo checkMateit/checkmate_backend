@@ -45,6 +45,7 @@ public class GroupBoardServiceImpl implements GroupBoardService {
             return page.map(p -> BoardPostListItemRes.builder()
                     .postId(p.getPostId())
                     .title(p.getTitle())
+                    .authorUserId(p.getAuthorUserId())
                     .empathyCount(0L)
                     .commentCount(0L)
                     .build());
@@ -58,6 +59,7 @@ public class GroupBoardServiceImpl implements GroupBoardService {
         return page.map(p -> BoardPostListItemRes.builder()
                 .postId(p.getPostId())
                 .title(p.getTitle())
+                .authorUserId(p.getAuthorUserId())
                 .empathyCount(empathyCounts.getOrDefault(p.getPostId(), 0L))
                 .commentCount(commentCounts.getOrDefault(p.getPostId(), 0L))
                 .build());
