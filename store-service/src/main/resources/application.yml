@@ -20,6 +20,22 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+    # 컨슈머(수신자) 설정
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 2000ms
+          max-attempts: 3
+          max-interval: 10000ms
+          multiplier: 2.0
+        acknowledge-mode: AUTO
+
 eureka:
   client:
     register-with-eureka: true

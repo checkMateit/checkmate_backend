@@ -72,23 +72,23 @@ services:
     networks:
       - checkmate-network
 
-  study-service:
-    build:
-      context: .
-      dockerfile: study-service/Dockerfile
-    container_name: study-service
-    ports:
-      - "8083:8083"
-    environment:
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-    depends_on:
-      - postgres
-      - eureka-service
-    networks:
-      - checkmate-network
+#  study-service:
+#    build:
+#      context: .
+#      dockerfile: study-service/Dockerfile
+#    container_name: study-service
+#    ports:
+#      - "8083:8083"
+#    environment:
+#      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka/
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://sample-postgres:5432/${DB_NAME}
+#      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+#      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+#    depends_on:
+#      - postgres
+#      - eureka-service
+#    networks:
+#      - checkmate-network
 
   store-service:
     build:
@@ -110,6 +110,16 @@ services:
       - postgres
       - redis
       - eureka-service
+      - rabbitmq
+    networks:
+      - checkmate-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - checkmate-network
 
@@ -134,6 +144,8 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     depends_on:
       - postgres
       - redis
