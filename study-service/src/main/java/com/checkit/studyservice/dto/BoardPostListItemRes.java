@@ -14,6 +14,7 @@ public class BoardPostListItemRes {
 
     private Long postId;
     private String title;
+    private UUID authorUserId;
     private long empathyCount;
     private long commentCount;
 }
