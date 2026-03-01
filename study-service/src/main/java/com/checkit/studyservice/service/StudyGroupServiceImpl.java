@@ -1125,6 +1125,8 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .category(g.getCategory() != null ? g.getCategory().name() : null)
                 .methodCodes(methodCodes)
                 .title(g.getTitle())
+                .thumbnailType(g.getThumbnailType() != null ? g.getThumbnailType().name() : null)
+                .thumbnailUrl(g.getThumbnailUrl())
                 .minMembers(g.getMinMembers())
                 .maxMembers(g.getMaxMembers())
                 .currentMembers(g.getCurrentMembers())
