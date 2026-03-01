@@ -50,6 +50,14 @@ spring:
           filters:
             - name: JwtAuthenticationFilter
 
+        # study-service 로그인 필수 API: /study-groups/my (공개 라우트보다 먼저 매칭되도록 위에 정의)
+        - id: study-service-my
+          uri: lb://STUDY-SERVICE
+          predicates:
+            - Path=/study-groups/my
+          filters:
+            - name: JwtAuthenticationFilter
+
         # study-service 공개 API (비로그인): GET 검색·목록, 추천, 그룹 상세만
         - id: study-service-public
           uri: lb://STUDY-SERVICE
