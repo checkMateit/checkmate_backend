@@ -32,31 +32,26 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
 
+        log.info("OAuth2SuccessHandler called");
+
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+        log.info("attributes={}", oAuth2User.getAttributes());
 
         UUID userId = (UUID) oAuth2User.getAttributes().get("userId");
         UserRole role = (UserRole) oAuth2User.getAttributes().get("role");
 
         String accessToken = jwtTokenProvider.createAccessToken(userId, role);
         String refreshToken = jwtTokenProvider.createRefreshToken(userId, role);
-        log.info("Generated JWT accessToken: {}, refreshToken: {}", accessToken, refreshToken);
 
-        redisTemplate.opsForValue().set(
-                "RT:" + userId.toString(),
-                refreshToken,
-                Duration.ofMillis(jwtTokenProvider.getRefreshTokenValidity())
-        );
+        String targetUrl = UriComponentsBuilder.fromUriString("checkit://login-success")
+                .queryParam("accessToken", accessToken)
+                .queryParam("refreshToken", refreshToken)
+                .queryParam("userId", userId.toString())
+                .queryParam("role", role.name())
+                .build().toUriString();
 
-        TokenResponse tokenData = TokenResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .grantType("Bearer")
-                .build();
+        log.info("Redirect target: {}", targetUrl);
 
-        ApiResponse<TokenResponse> apiResponse = ApiResponse.success(tokenData);
-
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+        getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

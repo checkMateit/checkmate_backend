@@ -35,6 +35,7 @@ public class InquiryCommentController {
     @PatchMapping("/{inquiryId}/comments/{commentId}")
     public ApiResponse<InquiryCommentRes> updateComment(
             @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role,
             @PathVariable Long inquiryId,
             @PathVariable Long commentId,
             @RequestBody InquiryCommentReq req
@@ -45,7 +46,7 @@ public class InquiryCommentController {
                 inquiryId,
                 commentId,
                 userUuid,
-                req.getAuthorType(),
+                role,
                 req.getContent());
 
         return ApiResponse.success(res);
@@ -55,19 +56,18 @@ public class InquiryCommentController {
     @DeleteMapping("/{inquiryId}/comments/{commentId}")
     public ApiResponse<Void> deleteComment(
             @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role,
             @PathVariable Long inquiryId,
             @PathVariable Long commentId
 
     ) {
-        // TODO: 나중에 JWT에서 꺼내기
         UUID userUuid = UUID.fromString(userId);
-        String authorType = "USER"; // or "ADMIN"
 
         inquiryCommentService.deleteComment(
                 inquiryId,
                 commentId,
                 userUuid,
-                authorType
+                role
         );
 
         return ApiResponse.success();
