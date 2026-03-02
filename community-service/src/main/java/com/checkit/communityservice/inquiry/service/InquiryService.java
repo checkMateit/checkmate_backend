@@ -40,14 +40,18 @@ public class InquiryService {
     }
 
     // 문의글 상세보기
-    public InquiryDetailRes getInquiryDetail(Long inquiryId, UUID userId) {
+    public InquiryDetailRes getInquiryDetail(Long inquiryId, UUID userId, String role) {
 
 
-        Inquiry inquiry = inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
-                .orElseThrow(() -> {
-                    log.warn("getInquiryDetail - Inquiry not found with inquiryId: {} and userId: {}", inquiryId, userId);
-                    return new BusinessException(CommonCode.INQUIRY_NOT_FOUND);
-                });
+        Inquiry inquiry;
+
+        if ("ADMIN".equals(role)) {
+            inquiry = inquiryRepository.findById(inquiryId)
+                    .orElseThrow(() -> new BusinessException(CommonCode.INQUIRY_NOT_FOUND));
+        } else {
+            inquiry = inquiryRepository.findByInquiryIdAndUserId(inquiryId, userId)
+                    .orElseThrow(() -> new BusinessException(CommonCode.INQUIRY_NOT_FOUND));
+        }
 
         List<InquiryCommentRes> comments =
                 inquiryCommentRepository.findAllByInquiryIdOrderByCreatedAtDesc(inquiryId)
