@@ -28,6 +28,7 @@ public class MyBadgeListRes {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MyBadgeItemRes {
+        private Long badgeUserId;
         private Long badgeId;
         private String name;
         private String description;
@@ -37,6 +38,7 @@ public class MyBadgeListRes {
 
         public static MyBadgeItemRes from(UserBadgeEntity userBadge, String description, String imageUrl) {
             return MyBadgeItemRes.builder()
+                    .badgeUserId(userBadge.getBadgeUserId())
                     .badgeId(userBadge.getBadgeId())
                     .name(userBadge.getName())
                     .description(description)
