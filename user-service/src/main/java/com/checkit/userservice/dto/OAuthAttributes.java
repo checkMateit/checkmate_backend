@@ -47,11 +47,16 @@ public class OAuthAttributes {
     }
 
     private static OAuthAttributes ofGithub(String userNameAttribute, Map<String, Object> attributes) {
+        String email = (String) attributes.get("email");
+        String providerUserId = String.valueOf(attributes.get("id"));
+        if (email == null || email.isBlank()) {
+            email = "github_" + providerUserId + "@oauth.checkmate.local";
+        }
         return OAuthAttributes.builder()
                 .name((String) attributes.get("login")) // 깃허브는 login이 닉네임
-                .email((String) attributes.get("email"))
+                .email(email)
                 .picture((String) attributes.get("avatar_url")) // 깃허브는 avatar_url이 프사
-                .providerUserId(String.valueOf(attributes.get("id"))) // id가 숫자형이므로 String 변환
+                .providerUserId(providerUserId)
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttribute)
                 .build();
