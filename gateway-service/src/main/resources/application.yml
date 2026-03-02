@@ -39,7 +39,7 @@ spring:
         - id: store-service-public
           uri: lb://STORE-SERVICE
           predicates:
-            - Path=/points/**, /products/**
+            - Path=/points/**, /products/**, /notifications, /notifications/**
           filters:
             - name: JwtAuthenticationFilter
 

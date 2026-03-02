@@ -21,7 +21,7 @@ public class TestMessageProducer implements CommandLineRunner {
         log.info("=== 테스트 알림 메시지 발송 시작 ===");
 
         NotificationRequest testRequest = new NotificationRequest(
-                1L,
+                "3fa14730-51a4-4676-80f5-fffccd085ce7",
                 "RANKING",
                 "테스트 알림 제목",
                 "이것은 RabbitMQ 테스트 메시지입니다.",

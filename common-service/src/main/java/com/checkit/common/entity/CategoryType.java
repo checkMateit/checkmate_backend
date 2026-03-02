@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum CategoryType {
+    ALL("전체"),
     WAKE("기상"),
     SEATED("공부"),
     COTE("코테"),
