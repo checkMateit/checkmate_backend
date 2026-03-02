@@ -36,3 +36,7 @@ dependencies {
 bootJar {
 	enabled = true
 }
+
+tasks.named('test') {
+	enabled = true
+}
