@@ -83,6 +83,7 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     private final PhotoVerificationRepository photoVerificationRepository;
     private final GpsSubmissionRepository gpsSubmissionRepository;
     private final GpsLocationRepository gpsLocationRepository;
+    private final SocialAccountRepository socialAccountRepository;
     private final ObjectMapper objectMapper;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
@@ -100,6 +101,13 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         }
 
         validateCreateRequest(request);
+
+        // 깃허브 인증 규칙이 있으면 방장이 GitHub 연동되어 있어야 함
+        boolean hasGitHubRule = request.getVerificationRules().stream()
+                .anyMatch(r -> r.getMethod() != null && r.getMethod().getMethodCode() == VerificationMethodCode.GITHUB);
+        if (hasGitHubRule && !socialAccountRepository.hasGitHubLinked(actor)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "깃허브 인증 스터디 그룹은 GitHub 연동이 필요합니다.");
+        }
 
         StudyGroup group = StudyGroup.builder()
                 .title(request.getTitle())
@@ -457,6 +465,10 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         if (studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
             throw new BusinessException(CommonCode.BAD_REQUEST, "이미 가입한 그룹입니다.");
         }
+        // 깃허브 인증 그룹은 GitHub 연동 사용자만 가입 가능
+        if (groupHasGitHubVerification(groupId) && !socialAccountRepository.hasGitHubLinked(actor)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "이 스터디 그룹은 GitHub 연동이 필요합니다.");
+        }
         StudyUser member = StudyUser.builder()
                 .userId(actor)
                 .studyId(groupId)
@@ -542,6 +554,10 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         }
         if (studyUserRepository.existsByUserIdAndStudyId(actor, inv.getGroupId())) {
             throw new BusinessException(CommonCode.BAD_REQUEST, "이미 가입한 그룹입니다.");
+        }
+        // 깃허브 인증 그룹은 GitHub 연동 사용자만 가입 가능
+        if (groupHasGitHubVerification(inv.getGroupId()) && !socialAccountRepository.hasGitHubLinked(actor)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "이 스터디 그룹은 GitHub 연동이 필요합니다.");
         }
         StudyUser member = StudyUser.builder()
                 .userId(actor)
@@ -1296,6 +1312,12 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         if (slot == null || (slot != 1 && slot != 2)) {
             throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2만 가능합니다.");
         }
+    }
+
+    /** 해당 그룹에 GITHUB 인증 규칙이 하나라도 있는지 (삭제되지 않은 것만) */
+    private boolean groupHasGitHubVerification(Long groupId) {
+        return methodRepository.findAllByGroupId(groupId).stream()
+                .anyMatch(m -> m.getDeletedAt() == null && m.getMethodCode() == VerificationMethodCode.GITHUB);
     }
 
     private VerificationRuleDetailRes toVerificationRuleDetailRes(int slot, GroupVerificationSchedule s,

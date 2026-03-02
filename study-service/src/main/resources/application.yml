@@ -41,3 +41,6 @@ app:
   verification:
     photo:
       upload-dir: ./uploads/verification
+  # GitHub API 호출 시 사용 (선택). 미설정 시 비인증 호출(rate limit 60/h), 설정 시 Bearer 토큰 사용.
+  github:
+    token: ${GITHUB_TOKEN:}
