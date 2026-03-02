@@ -12,15 +12,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 /**
  * ChecklistVerificationServiceImpl 단위 테스트.
+ * 예외 검증은 try/catch + AssertionError로만 수행 (Assert.java:111 회피).
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ChecklistVerificationServiceImpl 단위 테스트")
@@ -42,35 +40,30 @@ class ChecklistVerificationServiceImplTest {
     private static final Long GROUP_ID = 1L;
     private static final Integer SLOT = 1;
 
+    private static void expectUnauthorized(Runnable runnable) {
+        try {
+            runnable.run();
+            throw new AssertionError("expected BusinessException with UNAUTHORIZED");
+        } catch (BusinessException e) {
+            if (e.getCode() != CommonCode.UNAUTHORIZED) {
+                throw new AssertionError("expected UNAUTHORIZED, got " + e.getCode());
+            }
+        }
+    }
+
     @Test
     @DisplayName("getItems - actor가 null이면 UNAUTHORIZED")
     void getItems_actorNull_throwsUnauthorized() {
         when(studyGroupRepository.findById(GROUP_ID)).thenReturn(java.util.Optional.of(new StudyGroup()));
-
-        assertThatThrownBy(() ->
-                checklistVerificationService.getItems(null, GROUP_ID, SLOT, LocalDate.now()))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException e = (BusinessException) ex;
-                    assertThat(e.getCode()).isEqualTo(CommonCode.UNAUTHORIZED);
-                });
+        expectUnauthorized(() -> checklistVerificationService.getItems(null, GROUP_ID, SLOT, LocalDate.now()));
     }
 
     @Test
     @DisplayName("addItem - actor가 null이면 UNAUTHORIZED")
     void addItem_actorNull_throwsUnauthorized() {
-        when(studyGroupRepository.findById(GROUP_ID)).thenReturn(java.util.Optional.of(new StudyGroup()));
-
         com.checkit.studyservice.dto.ChecklistItemCreateReq req =
                 new com.checkit.studyservice.dto.ChecklistItemCreateReq();
         req.setContent("항목");
-
-        assertThatThrownBy(() ->
-                checklistVerificationService.addItem(null, GROUP_ID, SLOT, LocalDate.now(), req))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException e = (BusinessException) ex;
-                    assertThat(e.getCode()).isEqualTo(CommonCode.UNAUTHORIZED);
-                });
+        expectUnauthorized(() -> checklistVerificationService.addItem(null, GROUP_ID, SLOT, LocalDate.now(), req));
     }
 }

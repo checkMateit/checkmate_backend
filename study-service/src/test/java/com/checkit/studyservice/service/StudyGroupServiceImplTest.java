@@ -6,6 +6,7 @@ import com.checkit.studyservice.dto.*;
 import com.checkit.studyservice.entity.*;
 import com.checkit.studyservice.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,13 +21,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * StudyGroupServiceImpl 비즈니스 로직 단위 테스트.
+ * StudyGroupServiceImpl 단위 테스트.
+ * 예외 검증은 try/catch + AssertionError로만 수행 (Assert.java:111 회피).
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("StudyGroupServiceImpl 단위 테스트")
@@ -56,12 +56,31 @@ class StudyGroupServiceImplTest {
     @InjectMocks
     private StudyGroupServiceImpl studyGroupService;
 
-    {
+    @BeforeEach
+    void setUp() {
         ReflectionTestUtils.setField(studyGroupService, "photoUploadDir", "./uploads/verification");
     }
 
     private static final UUID ACTOR = UUID.randomUUID();
     private static final Long GROUP_ID = 1L;
+
+    private static void assertBusinessException(CommonCode expectedCode, String detailContains, Runnable runnable) {
+        try {
+            runnable.run();
+            throw new AssertionError("expected BusinessException");
+        } catch (BusinessException e) {
+            if (e.getCode() != expectedCode) {
+                throw new AssertionError("expected code " + expectedCode + ", got " + e.getCode());
+            }
+            if (detailContains != null && (e.getDetail() == null || !e.getDetail().contains(detailContains))) {
+                throw new AssertionError("expected detail to contain '" + detailContains + "', got " + e.getDetail());
+            }
+        }
+    }
+
+    private static void assertBusinessException(CommonCode expectedCode, Runnable runnable) {
+        assertBusinessException(expectedCode, null, runnable);
+    }
 
     @Nested
     @DisplayName("createStudyGroup")
@@ -70,12 +89,7 @@ class StudyGroupServiceImplTest {
         @Test
         void actor가_null이면_UNAUTHORIZED() {
             StudyGroupCreateReq req = minimalValidCreateReq();
-            assertThatThrownBy(() -> studyGroupService.createStudyGroup(null, req))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.UNAUTHORIZED);
-                    });
+            assertBusinessException(CommonCode.UNAUTHORIZED, () -> studyGroupService.createStudyGroup(null, req));
         }
 
         @Test
@@ -83,27 +97,14 @@ class StudyGroupServiceImplTest {
             StudyGroupCreateReq req = minimalValidCreateReq();
             req.setMinMembers(10);
             req.setMaxMembers(5);
-            assertThatThrownBy(() -> studyGroupService.createStudyGroup(ACTOR, req))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("min_members");
-                    });
+            assertBusinessException(CommonCode.BAD_REQUEST, "min_members", () -> studyGroupService.createStudyGroup(ACTOR, req));
         }
 
         @Test
         void GitHub_인증_규칙이_있는데_연동_안되어_있으면_BAD_REQUEST() {
             StudyGroupCreateReq req = createReqWithGitHubRule();
             when(socialAccountRepository.hasGitHubLinked(ACTOR)).thenReturn(false);
-
-            assertThatThrownBy(() -> studyGroupService.createStudyGroup(ACTOR, req))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("GitHub");
-                    });
+            assertBusinessException(CommonCode.BAD_REQUEST, "GitHub", () -> studyGroupService.createStudyGroup(ACTOR, req));
             verify(socialAccountRepository).hasGitHubLinked(ACTOR);
         }
 
@@ -122,8 +123,8 @@ class StudyGroupServiceImplTest {
 
             StudyGroupCreateRes res = studyGroupService.createStudyGroup(ACTOR, req);
 
-            assertThat(res).isNotNull();
-            assertThat(res.getGroupId()).isEqualTo(savedGroup.getGroupId());
+            if (res == null) throw new AssertionError("res is null");
+            if (!res.getGroupId().equals(savedGroup.getGroupId())) throw new AssertionError("groupId mismatch");
             verify(studyGroupRepository).save(any(StudyGroup.class));
             verify(studyUserRepository).save(any(StudyUser.class));
         }
@@ -138,6 +139,7 @@ class StudyGroupServiceImplTest {
             g.setJoinType(JoinType.PUBLIC);
             g.setMinMembers(1);
             g.setMaxMembers(10);
+            g.setCategory(Category.COTE);  // saveVerificationRules에서 GitHub 규칙은 COTE만 허용 → saved.getCategory() 사용
             g.setCreatedAt(java.time.OffsetDateTime.now());
             return g;
         }
@@ -149,17 +151,13 @@ class StudyGroupServiceImplTest {
 
         @Test
         void actor가_null이면_UNAUTHORIZED() {
-            assertThatThrownBy(() -> studyGroupService.joinPublic(null, GROUP_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(CommonCode.UNAUTHORIZED));
+            assertBusinessException(CommonCode.UNAUTHORIZED, () -> studyGroupService.joinPublic(null, GROUP_ID));
         }
 
         @Test
         void 그룹이_없으면_NOT_FOUND() {
             when(studyGroupRepository.findById(GROUP_ID)).thenReturn(Optional.empty());
-            assertThatThrownBy(() -> studyGroupService.joinPublic(ACTOR, GROUP_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(CommonCode.NOT_FOUND));
+            assertBusinessException(CommonCode.NOT_FOUND, () -> studyGroupService.joinPublic(ACTOR, GROUP_ID));
         }
 
         @Test
@@ -167,14 +165,7 @@ class StudyGroupServiceImplTest {
             StudyGroup group = publicGroup();
             group.setJoinType(JoinType.INVITE_ONLY);
             when(studyGroupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
-
-            assertThatThrownBy(() -> studyGroupService.joinPublic(ACTOR, GROUP_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("공개 가입");
-                    });
+            assertBusinessException(CommonCode.BAD_REQUEST, "공개 가입", () -> studyGroupService.joinPublic(ACTOR, GROUP_ID));
         }
 
         @Test
@@ -182,14 +173,7 @@ class StudyGroupServiceImplTest {
             StudyGroup group = publicGroup();
             when(studyGroupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
             when(studyUserRepository.existsByUserIdAndStudyId(ACTOR, GROUP_ID)).thenReturn(true);
-
-            assertThatThrownBy(() -> studyGroupService.joinPublic(ACTOR, GROUP_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("이미 가입");
-                    });
+            assertBusinessException(CommonCode.BAD_REQUEST, "이미 가입", () -> studyGroupService.joinPublic(ACTOR, GROUP_ID));
         }
 
         @Test
@@ -198,16 +182,8 @@ class StudyGroupServiceImplTest {
             group.setCurrentMembers(10);
             group.setMaxMembers(10);
             when(studyGroupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
-            when(studyUserRepository.existsByUserIdAndStudyId(ACTOR, GROUP_ID)).thenReturn(false);
-            when(methodRepository.findAllByGroupId(GROUP_ID)).thenReturn(List.of());
-
-            assertThatThrownBy(() -> studyGroupService.joinPublic(ACTOR, GROUP_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("정원");
-                    });
+            // 정원 마감이면 currentMembers >= maxMembers 검사에서 바로 예외 → 아래 메서드는 호출되지 않음 (스텁 제거)
+            assertBusinessException(CommonCode.BAD_REQUEST, "정원", () -> studyGroupService.joinPublic(ACTOR, GROUP_ID));
         }
 
         @Test
@@ -217,18 +193,15 @@ class StudyGroupServiceImplTest {
             when(studyUserRepository.existsByUserIdAndStudyId(ACTOR, GROUP_ID)).thenReturn(false);
             when(methodRepository.findAllByGroupId(GROUP_ID)).thenReturn(List.of());
             when(studyGroupRepository.save(any(StudyGroup.class))).thenAnswer(i -> i.getArgument(0));
-            when(studyUserRepository.save(any(StudyUser.class))).thenAnswer(i -> {
-                StudyUser u = i.getArgument(0);
-                return u;
-            });
+            when(studyUserRepository.save(any(StudyUser.class))).thenAnswer(i -> i.getArgument(0));
 
             JoinRes res = studyGroupService.joinPublic(ACTOR, GROUP_ID);
 
-            assertThat(res).isNotNull();
-            assertThat(res.getGroupId()).isEqualTo(GROUP_ID);
-            assertThat(res.getJoinedAt()).isNotNull();
-            verify(studyUserRepository).save(argThat(u -> u.getUserId().equals(ACTOR) && u.getStudyId().equals(GROUP_ID)));
-            verify(studyGroupRepository).save(argThat(g -> g.getCurrentMembers() == 2));
+            if (res == null) throw new AssertionError("res is null");
+            if (!GROUP_ID.equals(res.getGroupId())) throw new AssertionError("groupId mismatch");
+            if (res.getJoinedAt() == null) throw new AssertionError("joinedAt is null");
+            verify(studyUserRepository).save(argThat(u -> ACTOR.equals(u.getUserId()) && GROUP_ID.equals(u.getStudyId())));
+            verify(studyGroupRepository).save(argThat(g -> g.getCurrentMembers() != null && g.getCurrentMembers() == 2));
         }
 
         private StudyGroup publicGroup() {
@@ -259,10 +232,7 @@ class StudyGroupServiceImplTest {
             group.setDeletedAt(null);
             when(studyGroupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
             UUID nonOwner = UUID.randomUUID();
-
-            assertThatThrownBy(() -> studyGroupService.kickMember(nonOwner, GROUP_ID, TARGET))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(CommonCode.FORBIDDEN));
+            assertBusinessException(CommonCode.FORBIDDEN, () -> studyGroupService.kickMember(nonOwner, GROUP_ID, TARGET));
         }
 
         @Test
@@ -272,14 +242,7 @@ class StudyGroupServiceImplTest {
             group.setOwnerUserId(OWNER);
             group.setDeletedAt(null);
             when(studyGroupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group));
-
-            assertThatThrownBy(() -> studyGroupService.kickMember(OWNER, GROUP_ID, OWNER))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("그룹장");
-                    });
+            assertBusinessException(CommonCode.BAD_REQUEST, "그룹장", () -> studyGroupService.kickMember(OWNER, GROUP_ID, OWNER));
         }
     }
 
@@ -304,14 +267,7 @@ class StudyGroupServiceImplTest {
                     .joinedAt(LocalDateTime.now())
                     .build();
             when(studyUserRepository.findById(new StudyUserId(ACTOR, GROUP_ID))).thenReturn(Optional.of(leader));
-
-            assertThatThrownBy(() -> studyGroupService.leaveStudyGroup(ACTOR, GROUP_ID))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> {
-                        BusinessException e = (BusinessException) ex;
-                        assertThat(e.getCode()).isEqualTo(CommonCode.BAD_REQUEST);
-                        assertThat(e.getDetail()).contains("그룹장");
-                    });
+            assertBusinessException(CommonCode.BAD_REQUEST, "그룹장", () -> studyGroupService.leaveStudyGroup(ACTOR, GROUP_ID));
         }
     }
 
@@ -321,9 +277,7 @@ class StudyGroupServiceImplTest {
 
         @Test
         void actor가_null이면_UNAUTHORIZED() {
-            assertThatThrownBy(() -> studyGroupService.getMyStudyGroups(null))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(CommonCode.UNAUTHORIZED));
+            assertBusinessException(CommonCode.UNAUTHORIZED, () -> studyGroupService.getMyStudyGroups(null));
         }
     }
 
