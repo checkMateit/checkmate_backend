@@ -19,7 +19,7 @@ public class NotificationEntity extends AuditBaseEntity {
     private Long id;
 
     @Column(nullable = false)
-    private Long receiverId;
+    private String receiverId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

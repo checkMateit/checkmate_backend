@@ -20,7 +20,7 @@ public class SseController {
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@AuthenticationPrincipal UserDetails userDetails) {
 
-        String userId = "1";
+        String userId = userDetails.getUsername();
         return sseService.subscribe(userId);
     }
 }

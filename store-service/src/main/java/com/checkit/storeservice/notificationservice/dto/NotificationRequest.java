@@ -3,7 +3,7 @@ package com.checkit.storeservice.notificationservice.dto;
 import java.util.UUID;
 
 public record NotificationRequest(
-        Long receiverId,
+        String receiverId,
         String type,
         String title,
         String content,
