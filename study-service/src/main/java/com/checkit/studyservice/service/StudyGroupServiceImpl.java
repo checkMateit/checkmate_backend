@@ -17,6 +17,8 @@ import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 import com.checkit.studyservice.dto.VerificationRuleDetailRes;
 import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.dto.VerificationReportRes;
+import com.checkit.studyservice.dto.VerificationRecordItemRes;
+import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
@@ -43,6 +45,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -731,6 +734,43 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 .endDate(endDate)
                 .opportunityCount(opportunityCount)
                 .members(memberStats)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VerificationRecordsRes getVerificationRecords(UUID actor, Long groupId, LocalDate startDate, LocalDate endDate) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "그룹 멤버만 인증 기록을 조회할 수 있습니다.");
+        }
+        LocalDate start = startDate != null ? startDate : LocalDate.now().with(DayOfWeek.MONDAY);
+        LocalDate end = endDate != null ? endDate : LocalDate.now();
+        if (start.isAfter(end)) {
+            start = end;
+        }
+        Set<UUID> memberIds = studyUserRepository.findAllByStudyId(groupId).stream()
+                .filter(m -> m.getStatus() == StudyUserStatus.ACTIVE)
+                .map(StudyUser::getUserId)
+                .collect(Collectors.toSet());
+        List<UserVerificationRecord> records = userVerificationRecordRepository.findByGroupIdAndVerificationDateBetween(groupId, start, end);
+        List<VerificationRecordItemRes> items = records.stream()
+                .filter(r -> memberIds.contains(r.getUserId()))
+                .map(r -> VerificationRecordItemRes.builder()
+                        .userId(r.getUserId())
+                        .slot(r.getSlot())
+                        .verificationDate(r.getVerificationDate())
+                        .build())
+                .collect(Collectors.toList());
+        return VerificationRecordsRes.builder()
+                .records(items)
                 .build();
     }
 

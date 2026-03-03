@@ -16,6 +16,7 @@ import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 import com.checkit.studyservice.dto.VerificationRuleDetailRes;
 import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.dto.VerificationReportRes;
+import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitReq;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
@@ -227,6 +228,19 @@ public class StudyGroupController {
     ) {
         LocalDate end = endDate != null ? endDate : LocalDate.now();
         VerificationReportRes res = studyGroupService.getVerificationReport(groupId, end);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 기간별 인증 기록 조회 (현황 탭 요약용). 그룹 멤버만 호출 가능. */
+    @GetMapping("/{groupId}/verification/records")
+    public ResponseEntity<ApiResponse<VerificationRecordsRes>> getVerificationRecords(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        VerificationRecordsRes res = studyGroupService.getVerificationRecords(actor, groupId, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 
