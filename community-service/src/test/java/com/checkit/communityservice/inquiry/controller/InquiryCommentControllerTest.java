@@ -1,6 +1,7 @@
 package com.checkit.communityservice.inquiry.controller;
 
 import com.checkit.common.exception.CommonCode;
+import com.checkit.communityservice.exception.GlobalExceptionHandler;
 import com.checkit.communityservice.inquiry.dto.InquiryCommentReq;
 import com.checkit.communityservice.inquiry.dto.InquiryCommentRes;
 import com.checkit.communityservice.inquiry.service.InquiryCommentService;
@@ -29,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(InquiryCommentController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@org.springframework.context.annotation.Import(GlobalExceptionHandler.class)
 class InquiryCommentControllerTest {
 
     @Autowired

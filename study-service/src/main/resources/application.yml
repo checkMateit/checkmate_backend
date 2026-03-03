@@ -5,6 +5,12 @@ spring:
   application:
     name: study-service
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 25MB
+
   datasource:
     url: jdbc:postgresql://localhost:5432/sample
     username: user

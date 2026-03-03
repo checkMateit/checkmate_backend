@@ -251,7 +251,7 @@ public class StudyGroupController {
             @PathVariable Long groupId,
             @PathVariable Integer slot,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate verificationDate,
-            @RequestParam("files") MultipartFile[] files
+            @RequestParam(value = "files", required = false) MultipartFile[] files
     ) {
         UUID actor = parseActor(userIdHeader);
         VerificationPhotoSubmitRes res = studyGroupService.submitPhotoVerification(actor, groupId, slot, verificationDate, files);

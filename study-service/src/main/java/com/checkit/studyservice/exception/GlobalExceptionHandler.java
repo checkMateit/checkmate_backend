@@ -38,7 +38,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleOther(Exception e) {
-        ErrorResponse er = ErrorResponse.of(CommonCode.INTERNAL_SERVER_ERROR.getCode(), CommonCode.INTERNAL_SERVER_ERROR.getMessage(), "-");
+        String detail = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : e.getClass().getSimpleName();
+        String message = CommonCode.INTERNAL_SERVER_ERROR.getMessage() + ": " + detail;
+        ErrorResponse er = ErrorResponse.of(CommonCode.INTERNAL_SERVER_ERROR.getCode(), message, "-");
         return ResponseEntity.status(CommonCode.INTERNAL_SERVER_ERROR.getHttpStatus()).body(ApiResponse.failure(er));
     }
 }
