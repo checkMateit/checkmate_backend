@@ -4,6 +4,9 @@ plugins {
 	id 'java'
 }
 
+// TDD/CI: store-service 테스트만 실행 가능하도록 활성화
+tasks.named('test') { enabled = true }
+
 dependencies {
 	implementation project(':common-service')
 
@@ -33,5 +36,6 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
 
 }

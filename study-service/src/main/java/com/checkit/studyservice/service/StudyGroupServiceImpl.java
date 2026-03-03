@@ -840,6 +840,9 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                 ? photoRule.getAllowedExtensions() : "jpg,jpeg,png,webp";
 
         List<MultipartFile> fileList = files != null ? Arrays.stream(files).filter(f -> f != null && !f.isEmpty()).toList() : List.of();
+        if (fileList.isEmpty()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "업로드할 사진이 없습니다. multipart/form-data로 'files'에 사진을 첨부해 주세요.");
+        }
         if (fileList.size() < minFiles || fileList.size() > maxFiles) {
             throw new BusinessException(CommonCode.BAD_REQUEST,
                     "사진 개수는 " + minFiles + "~" + maxFiles + "장이어야 합니다. (현재 " + fileList.size() + "장)");
@@ -848,6 +851,12 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         Set<String> allowedExt = Arrays.stream(allowedExtensionsStr.split(","))
                 .map(String::trim).map(String::toLowerCase).filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
+        if (allowedExt.isEmpty()) {
+            allowedExt.add("jpg");
+            allowedExt.add("jpeg");
+            allowedExt.add("png");
+            allowedExt.add("webp");
+        }
         long maxBytes = (long) maxSizeMb * 1024 * 1024;
         List<String> savedPaths = new ArrayList<>();
         Path baseDir = Path.of(photoUploadDir).toAbsolutePath().normalize();
@@ -856,25 +865,35 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         try {
             Files.createDirectories(targetDir);
         } catch (IOException e) {
-            throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "업로드 디렉터리 생성 실패.");
+            String causeMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR,
+                    "업로드 디렉터리 생성 실패: " + causeMsg + " (경로: " + targetDir + ")");
         }
         for (MultipartFile file : fileList) {
             String originalName = file.getOriginalFilename();
-            String ext = originalName != null && originalName.contains(".")
+            if (originalName == null || originalName.isBlank()) {
+                originalName = "image.jpg";
+            }
+            String ext = originalName.contains(".")
                     ? originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase()
-                    : "";
+                    : "jpg";
             if (!allowedExt.contains(ext)) {
                 throw new BusinessException(CommonCode.BAD_REQUEST, "허용 확장자가 아닙니다: " + allowedExtensionsStr);
             }
-            if (file.getSize() > maxBytes) {
+            long fileSize = file.getSize();
+            if (fileSize < 0) {
+                throw new BusinessException(CommonCode.BAD_REQUEST, "파일 크기를 확인할 수 없습니다.");
+            }
+            if (fileSize > maxBytes) {
                 throw new BusinessException(CommonCode.BAD_REQUEST, "파일 크기는 " + maxSizeMb + "MB 이하여야 합니다.");
             }
             String fileName = UUID.randomUUID().toString().replace("-", "") + "." + ext;
             Path targetFile = targetDir.resolve(fileName);
             try (InputStream in = file.getInputStream()) {
                 Files.copy(in, targetFile);
-            } catch (IOException e) {
-                throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "파일 저장 실패.");
+            } catch (Exception e) {
+                String causeMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                throw new BusinessException(CommonCode.INTERNAL_SERVER_ERROR, "파일 저장 실패: " + causeMsg);
             }
             savedPaths.add(dirSegment + "/" + fileName);
         }

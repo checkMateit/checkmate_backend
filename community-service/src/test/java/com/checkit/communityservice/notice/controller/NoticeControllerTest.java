@@ -5,6 +5,7 @@ import com.checkit.communityservice.notice.dto.NoticeCreateReq;
 import com.checkit.communityservice.notice.dto.NoticeDetailRes;
 import com.checkit.communityservice.notice.dto.NoticeListItemRes;
 import com.checkit.communityservice.notice.dto.NoticeListRes;
+import com.checkit.communityservice.exception.GlobalExceptionHandler;
 import com.checkit.communityservice.notice.dto.NoticeUpdateReq;
 import com.checkit.communityservice.notice.service.NoticeService;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(NoticeController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@org.springframework.context.annotation.Import(GlobalExceptionHandler.class)
 class NoticeControllerTest {
 
     @Autowired

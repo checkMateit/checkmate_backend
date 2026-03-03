@@ -4,6 +4,9 @@ plugins {
 	id 'java'
 }
 
+// TDD/CI: user-service 테스트만 실행 가능하도록 활성화 (루트에서 test 비활성화 오버라이드)
+tasks.named('test') { enabled = true }
+
 dependencies {
 	implementation project(':common-service')
 
@@ -34,5 +37,6 @@ dependencies {
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
 
 }

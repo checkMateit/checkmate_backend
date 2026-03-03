@@ -4,6 +4,7 @@ import com.checkit.common.exception.CommonCode;
 import com.checkit.communityservice.inquiry.dto.InquiryDetailRes;
 import com.checkit.communityservice.inquiry.dto.InquiryListItemRes;
 import com.checkit.communityservice.inquiry.dto.InquiryListRes;
+import com.checkit.communityservice.exception.GlobalExceptionHandler;
 import com.checkit.communityservice.inquiry.dto.InquiryReq;
 import com.checkit.communityservice.inquiry.dto.PageInfoRes;
 import com.checkit.communityservice.inquiry.service.InquiryService;
@@ -34,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(InquiryController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@org.springframework.context.annotation.Import(GlobalExceptionHandler.class)
 class InquiryControllerTest {
 
     @Autowired
