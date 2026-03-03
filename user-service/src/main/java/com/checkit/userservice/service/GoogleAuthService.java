@@ -19,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,13 +44,21 @@ public class GoogleAuthService {
     @Transactional
     public TokenResponse loginFromApp(String serverAuthCode) {
         try {
+            // Android 등에서 URL 인코딩된 코드가 올 수 있음. 교환 전 디코딩.
+            String code = serverAuthCode;
+            try {
+                code = URLDecoder.decode(serverAuthCode.trim(), StandardCharsets.UTF_8);
+            } catch (Exception ignored) {
+                // 이미 디코딩된 경우 등
+            }
+
             GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
                     new NetHttpTransport(),
                     new GsonFactory(),
                     "https://oauth2.googleapis.com/token",
                     clientId,
                     clientSecret,
-                    serverAuthCode,
+                    code,
                     ""
             ).execute();
 
@@ -80,7 +90,9 @@ public class GoogleAuthService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Google App Login Error: ", e);
+            String msg = e.getMessage();
+            Throwable cause = e.getCause();
+            log.error("Google App Login Error: {} cause={}", msg, cause != null ? cause.getMessage() : "none", e);
             throw new RuntimeException("로그인 처리 중 오류가 발생했습니다.");
         }
     }
