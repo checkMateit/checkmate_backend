@@ -1,0 +1,22 @@
+# gateway-service 테스트 전용 설정
+spring:
+  main:
+    web-application-type: REACTIVE
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes: []  # 테스트 시 라우트 비활성화(필요 시 오버라이드)
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# JWT 검증 테스트용 시크릿 (HS256 최소 256비트 = 32자 이상)
+jwt:
+  secret: "test-jwt-secret-for-gateway-service-256bits!!"
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
