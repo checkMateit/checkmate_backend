@@ -21,7 +21,7 @@ spring:
         - id: user-service-public
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/users/login/**, /users/signup/**, /users/reissue
+            - Path=/users/login/**, /users/signup/**, /users/reissue, /auth/**
 
         - id: user-service
           uri: lb://USER-SERVICE
