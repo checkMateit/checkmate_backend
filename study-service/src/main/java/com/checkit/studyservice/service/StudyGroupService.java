@@ -15,6 +15,7 @@ import com.checkit.studyservice.dto.StudyGroupUpdateRes;
 import com.checkit.studyservice.dto.VerificationRuleDetailRes;
 import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.dto.VerificationReportRes;
+import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
@@ -80,6 +81,9 @@ public interface StudyGroupService {
 
     /** 스터디 그룹 리포트(인증 현황) 조회. 기간 내 기회 수·멤버별 이행 수·퍼센트 반환. */
     VerificationReportRes getVerificationReport(Long groupId, java.time.LocalDate endDate);
+
+    /** 기간별 인증 기록 조회 (현황 탭 요약용). 그룹 멤버만 호출 가능. */
+    VerificationRecordsRes getVerificationRecords(UUID actor, Long groupId, java.time.LocalDate startDate, java.time.LocalDate endDate);
 
     /**
      * 사진 인증 제출. PHOTO 방식 슬롯에 한함. 파일은 로컬 디렉터리(POC) 또는 스토리지에 저장.
