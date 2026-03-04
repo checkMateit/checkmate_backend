@@ -1,5 +1,7 @@
 package com.checkit.studyservice.service;
 
+import com.checkit.common.exception.BusinessException;
+import com.checkit.common.exception.CommonCode;
 import com.checkit.studyservice.client.GitHubApiClient;
 import com.checkit.studyservice.entity.GroupVerificationMethod;
 import com.checkit.studyservice.entity.GroupVerificationSchedule;
@@ -64,6 +66,7 @@ public class GitHubVerificationServiceImpl implements GitHubVerificationService 
         GitHubApiClient.OwnerRepo ownerRepo = GitHubApiClient.parseOwnerRepo(repoUrl);
         if (ownerRepo == null) return;
 
+        // 인증일 당일 00:00 ~ 마감시각(endTime) 구간의 커밋만 조회 → 마감시각 이전 커밋만 인증 성공
         ZoneId zoneId = ZoneId.of(schedule.getTimezone() != null ? schedule.getTimezone() : "Asia/Seoul");
         ZonedDateTime dayStart = verificationDate.atStartOfDay(zoneId);
         LocalDateTime endLdt = verificationDate.atTime(schedule.getEndTime() != null ? schedule.getEndTime() : java.time.LocalTime.of(23, 59, 59));
@@ -110,6 +113,26 @@ public class GitHubVerificationServiceImpl implements GitHubVerificationService 
         if (v == null) return null;
         String s = v.toString();
         return s.isBlank() ? null : s;
+    }
+
+    @Override
+    public void verifyRepoBranchForUser(UUID userId, String repoUrl, String branch) {
+        if (userId == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        if (!socialAccountRepository.hasGitHubLinked(userId)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "깃허브 인증 스터디 그룹은 GitHub 연동이 필요합니다.");
+        }
+        if (repoUrl == null || repoUrl.isBlank() || branch == null || branch.isBlank()) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "저장소 URL과 브랜치를 입력해 주세요.");
+        }
+        GitHubApiClient.OwnerRepo ownerRepo = GitHubApiClient.parseOwnerRepo(repoUrl.trim());
+        if (ownerRepo == null) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "저장소가 없습니다. URL과 브랜치를 확인한 뒤 다시 입력해 주세요.");
+        }
+        if (!githubApiClient.repoBranchExists(ownerRepo.owner(), ownerRepo.repo(), branch.trim())) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "저장소가 없습니다. URL과 브랜치를 확인한 뒤 다시 입력해 주세요.");
+        }
     }
 
     private Map<String, Object> parseDetailsJson(String json) {

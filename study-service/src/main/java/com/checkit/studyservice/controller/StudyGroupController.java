@@ -36,6 +36,7 @@ import com.checkit.studyservice.entity.JoinType;
 import com.checkit.studyservice.entity.VerificationMethodCode;
 import com.checkit.studyservice.service.StudyGroupService;
 import com.checkit.studyservice.service.GroupBoardService;
+import com.checkit.studyservice.service.GitHubVerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,22 @@ public class StudyGroupController {
 
     private final StudyGroupService studyGroupService;
     private final GroupBoardService groupBoardService;
+    private final GitHubVerificationService githubVerificationService;
+
+    /**
+     * GitHub 저장소/브랜치 존재 여부 검증 (스터디 그룹 생성 전 호출).
+     * X-User-Id 필수, GitHub 연동 사용자만 호출 가능.
+     */
+    @GetMapping("/verification/github/verify-repo")
+    public ResponseEntity<ApiResponse<Void>> verifyGithubRepo(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @RequestParam String repoUrl,
+            @RequestParam String branch
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        githubVerificationService.verifyRepoBranchForUser(actor, repoUrl, branch);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 
     /**
      * 스터디 그룹 검색·목록 조회. 모든 파라미터는 선택이며, 없으면 기본 목록(최신순, 삭제·마감 제외)을 반환합니다.

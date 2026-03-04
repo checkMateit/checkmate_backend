@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -22,6 +23,7 @@ import java.util.Optional;
 public class GitHubApiClient {
 
     private static final String COMMITS_URL = "https://api.github.com/repos/{owner}/{repo}/commits?sha={sha}&since={since}&until={until}&per_page=100";
+    private static final String BRANCH_URL = "https://api.github.com/repos/{owner}/{repo}/branches/{branch}";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final String apiToken;
@@ -76,6 +78,36 @@ public class GitHubApiClient {
             return Optional.of(String.valueOf(author.get("id").asInt()));
         }
         return Optional.empty();
+    }
+
+    /**
+     * 해당 저장소의 브랜치가 존재하는지 확인.
+     * 200이면 존재, 404면 없음, 그 외 예외 시 false.
+     */
+    public boolean repoBranchExists(String owner, String repo, String branch) {
+        if (owner == null || owner.isBlank() || repo == null || repo.isBlank() || branch == null || branch.isBlank()) {
+            return false;
+        }
+        String url = UriComponentsBuilder.fromUriString("https://api.github.com")
+                .pathSegment("repos", owner, repo, "branches")
+                .pathSegment(branch)
+                .build()
+                .toUriString();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.parseMediaType("application/vnd.github+json")));
+        if (apiToken != null) {
+            headers.setBearerAuth(apiToken);
+        }
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            return false;
+        } catch (Exception e) {
+            log.warn("GitHub API check branch failed: owner={}, repo={}, branch={}, error={}", owner, repo, branch, e.getMessage());
+            return false;
+        }
     }
 
     /**
