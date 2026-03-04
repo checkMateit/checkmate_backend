@@ -17,6 +17,8 @@ import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.dto.VerificationReportRes;
 import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
+import com.checkit.studyservice.dto.PhotoVerificationRecordRes;
+import com.checkit.studyservice.dto.GpsVerificationRecordRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
 import com.checkit.studyservice.dto.GpsLocationCreateReq;
@@ -86,6 +88,13 @@ public interface StudyGroupService {
     VerificationRecordsRes getVerificationRecords(UUID actor, Long groupId, java.time.LocalDate startDate, java.time.LocalDate endDate);
 
     /**
+     * 해당 날짜·슬롯의 사진 인증 기록 목록 (사진탭 현황용). 그룹 멤버만 호출 가능.
+     * submittedAt = user_verification_records.created_at.
+     */
+    List<PhotoVerificationRecordRes> getPhotoVerificationRecords(
+            UUID actor, Long groupId, Integer slot, java.time.LocalDate verificationDate);
+
+    /**
      * 사진 인증 제출. PHOTO 방식 슬롯에 한함. 파일은 로컬 디렉터리(POC) 또는 스토리지에 저장.
      * @param verificationDate null이면 오늘. 오늘만 허용하며, 해당 slot의 end_time 전까지 제출 가능.
      */
@@ -101,6 +110,13 @@ public interface StudyGroupService {
     GpsVerificationSubmitRes submitGpsVerification(
             UUID actor, Long groupId, Integer slot, java.time.LocalDate verificationDate,
             java.math.BigDecimal latitude, java.math.BigDecimal longitude);
+
+    /**
+     * 해당 날짜·슬롯의 위치 인증 기록 목록 (위치탭 현황용). 그룹 멤버만 호출 가능.
+     * submittedAt = gps_submissions.submitted_at.
+     */
+    List<GpsVerificationRecordRes> getGpsVerificationRecords(
+            UUID actor, Long groupId, Integer slot, java.time.LocalDate verificationDate);
 
     /** GPS 인증용 "내 위치" 목록 조회. 해당 그룹이 GPS 슬롯을 가질 때, 본인이 등록한 위치 목록. (PER_LOCATION 모드에서 사용) */
     List<GpsLocationRes> getMyGpsLocations(UUID actor, Long groupId, Integer slot);

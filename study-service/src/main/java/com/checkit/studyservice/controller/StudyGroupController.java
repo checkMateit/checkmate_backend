@@ -18,6 +18,8 @@ import com.checkit.studyservice.dto.VerificationRuleUpdateReq;
 import com.checkit.studyservice.dto.VerificationReportRes;
 import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
+import com.checkit.studyservice.dto.PhotoVerificationRecordRes;
+import com.checkit.studyservice.dto.GpsVerificationRecordRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitReq;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
@@ -34,6 +36,7 @@ import com.checkit.studyservice.entity.JoinType;
 import com.checkit.studyservice.entity.VerificationMethodCode;
 import com.checkit.studyservice.service.StudyGroupService;
 import com.checkit.studyservice.service.GroupBoardService;
+import com.checkit.studyservice.service.GitHubVerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -59,6 +62,22 @@ public class StudyGroupController {
 
     private final StudyGroupService studyGroupService;
     private final GroupBoardService groupBoardService;
+    private final GitHubVerificationService githubVerificationService;
+
+    /**
+     * GitHub 저장소/브랜치 존재 여부 검증 (스터디 그룹 생성 전 호출).
+     * X-User-Id 필수, GitHub 연동 사용자만 호출 가능.
+     */
+    @GetMapping("/verification/github/verify-repo")
+    public ResponseEntity<ApiResponse<Void>> verifyGithubRepo(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @RequestParam String repoUrl,
+            @RequestParam String branch
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        githubVerificationService.verifyRepoBranchForUser(actor, repoUrl, branch);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 
     /**
      * 스터디 그룹 검색·목록 조회. 모든 파라미터는 선택이며, 없으면 기본 목록(최신순, 삭제·마감 제외)을 반환합니다.
@@ -241,6 +260,32 @@ public class StudyGroupController {
     ) {
         UUID actor = parseActor(userIdHeader);
         VerificationRecordsRes res = studyGroupService.getVerificationRecords(actor, groupId, startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 해당 날짜·슬롯의 사진 인증 기록 목록 (사진탭 현황용). 그룹 멤버만 호출 가능. submittedAt 포함. */
+    @GetMapping("/{groupId}/verification/slots/{slot}/photo/records")
+    public ResponseEntity<ApiResponse<List<PhotoVerificationRecordRes>>> getPhotoVerificationRecords(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @PathVariable Integer slot,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate verificationDate
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        List<PhotoVerificationRecordRes> res = studyGroupService.getPhotoVerificationRecords(actor, groupId, slot, verificationDate);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 해당 날짜·슬롯의 위치 인증 기록 목록 (위치탭 현황용). 그룹 멤버만 호출 가능. submittedAt 포함. */
+    @GetMapping("/{groupId}/verification/slots/{slot}/gps/records")
+    public ResponseEntity<ApiResponse<List<GpsVerificationRecordRes>>> getGpsVerificationRecords(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @PathVariable Integer slot,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate verificationDate
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        List<GpsVerificationRecordRes> res = studyGroupService.getGpsVerificationRecords(actor, groupId, slot, verificationDate);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 
