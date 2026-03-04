@@ -20,6 +20,7 @@ import com.checkit.studyservice.dto.VerificationReportRes;
 import com.checkit.studyservice.dto.VerificationRecordItemRes;
 import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
+import com.checkit.studyservice.dto.PhotoVerificationRecordRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
 import com.checkit.studyservice.dto.GpsLocationCreateReq;
@@ -775,6 +776,61 @@ public class StudyGroupServiceImpl implements StudyGroupService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<PhotoVerificationRecordRes> getPhotoVerificationRecords(UUID actor, Long groupId, Integer slot,
+                                                                       LocalDate verificationDate) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        if (slot == null || (slot != 1 && slot != 2)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2여야 합니다.");
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "그룹 멤버만 사진 인증 기록을 조회할 수 있습니다.");
+        }
+        LocalDate date = verificationDate != null ? verificationDate : LocalDate.now();
+        List<UserVerificationRecord> records = userVerificationRecordRepository.findByGroupIdAndSlotAndVerificationDate(groupId, slot, date);
+        if (records.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> userIds = records.stream().map(UserVerificationRecord::getUserId).distinct().toList();
+        Map<UUID, String> nicknameMap = resolveNicknames(userIds);
+        List<PhotoVerificationRecordRes> result = new ArrayList<>();
+        for (UserVerificationRecord record : records) {
+            List<VerificationPhotoSubmission> submissions = verificationPhotoSubmissionRepository.findByRecordIdOrderBySubmissionId(record.getRecordId());
+            List<String> filePaths = submissions.stream()
+                    .map(VerificationPhotoSubmission::getFilePath)
+                    .toList();
+            List<String> titles = submissions.stream()
+                    .map(s -> {
+                        String name = s.getFilePath();
+                        if (name != null && name.contains("/")) {
+                            name = name.substring(name.lastIndexOf('/') + 1);
+                        }
+                        if (name != null && name.contains(".")) {
+                            name = name.substring(0, name.lastIndexOf('.'));
+                        }
+                        return (name != null && !name.isBlank()) ? name : "사진";
+                    })
+                    .toList();
+            result.add(PhotoVerificationRecordRes.builder()
+                    .userId(record.getUserId())
+                    .nickname(nicknameMap.get(record.getUserId()))
+                    .verificationDate(record.getVerificationDate())
+                    .submittedAt(record.getCreatedAt())
+                    .filePaths(filePaths)
+                    .titles(titles.isEmpty() ? null : titles)
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
     public VerificationPhotoSubmitRes submitPhotoVerification(UUID actor, Long groupId, Integer slot,
                                                               LocalDate verificationDate, MultipartFile[] files) {
         if (actor == null) {
@@ -831,7 +887,18 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         }
 
         PhotoVerification photoRule = photoVerificationRepository.findByGroupIdAndSlot(groupId, slot)
-                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "해당 슬롯의 사진 인증 상세 규칙(photo_verification)이 없습니다."));
+                .orElseGet(() -> {
+                    // 기존 그룹은 photo_verification 행이 없을 수 있음 → 기본 행 생성 후 사용
+                    PhotoVerification defaultRule = PhotoVerification.builder()
+                            .groupId(groupId)
+                            .slot(slot)
+                            .minFiles(1)
+                            .maxFiles(10)
+                            .maxSize(10)
+                            .allowedExtensions("jpg,jpeg,png,webp")
+                            .build();
+                    return photoVerificationRepository.save(defaultRule);
+                });
 
         int minFiles = Math.max(1, photoRule.getMinFiles() != null ? photoRule.getMinFiles() : 1);
         int maxFiles = Math.min(50, Math.max(photoRule.getMaxFiles() != null ? photoRule.getMaxFiles() : 10, minFiles));
@@ -1331,6 +1398,20 @@ public class StudyGroupServiceImpl implements StudyGroupService {
         m.setUpdater(actor);
         methodRepository.save(m);
 
+        if (request.getMethod().getMethodCode() == VerificationMethodCode.PHOTO) {
+            VerificationRuleUpdateReq.Method reqMethod = request.getMethod();
+            int minFiles = reqMethod.getPhoto() != null ? reqMethod.getPhoto().getMinFiles() : 1;
+            int maxFiles = reqMethod.getPhoto() != null ? reqMethod.getPhoto().getMaxFiles() : 10;
+            PhotoVerification pv = photoVerificationRepository.findByGroupIdAndSlot(groupId, slot)
+                    .orElse(PhotoVerification.builder().groupId(groupId).slot(slot).build());
+            pv.setMinFiles(minFiles);
+            pv.setMaxFiles(maxFiles);
+            pv.setMaxSize(pv.getMaxSize() != null ? pv.getMaxSize() : 10);
+            pv.setAllowedExtensions(pv.getAllowedExtensions() != null && !pv.getAllowedExtensions().isBlank()
+                    ? pv.getAllowedExtensions() : "jpg,jpeg,png,webp");
+            photoVerificationRepository.save(pv);
+        }
+
         return toVerificationRuleDetailRes(slot, s, f, ex, m);
     }
 
@@ -1619,6 +1700,18 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                     .build();
             method.setCreator(actor);
             methodRepository.save(method);
+
+            if (m.getMethodCode() == VerificationMethodCode.PHOTO && m.getPhoto() != null) {
+                PhotoVerification pv = PhotoVerification.builder()
+                        .groupId(groupId)
+                        .slot(slot)
+                        .minFiles(m.getPhoto().getMinFiles())
+                        .maxFiles(m.getPhoto().getMaxFiles())
+                        .maxSize(10)
+                        .allowedExtensions("jpg,jpeg,png,webp")
+                        .build();
+                photoVerificationRepository.save(pv);
+            }
         }
     }
 

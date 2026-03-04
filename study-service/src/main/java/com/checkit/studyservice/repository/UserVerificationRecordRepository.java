@@ -14,4 +14,8 @@ public interface UserVerificationRecordRepository extends JpaRepository<UserVeri
     /** 해당 날짜·슬롯에 이미 인증 기록이 있는지 */
     boolean existsByUserIdAndGroupIdAndSlotAndVerificationDate(
             java.util.UUID userId, Long groupId, Integer slot, LocalDate verificationDate);
+
+    /** 해당 그룹·슬롯·날짜의 사진 인증 기록 목록 (사진탭 현황용) */
+    List<UserVerificationRecord> findByGroupIdAndSlotAndVerificationDate(
+            Long groupId, Integer slot, LocalDate verificationDate);
 }
