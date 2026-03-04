@@ -21,6 +21,7 @@ import com.checkit.studyservice.dto.VerificationRecordItemRes;
 import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
 import com.checkit.studyservice.dto.PhotoVerificationRecordRes;
+import com.checkit.studyservice.dto.GpsVerificationRecordRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
 import com.checkit.studyservice.dto.GpsLocationCreateReq;
@@ -825,6 +826,46 @@ public class StudyGroupServiceImpl implements StudyGroupService {
                     .submittedAt(record.getCreatedAt())
                     .filePaths(filePaths)
                     .titles(titles.isEmpty() ? null : titles)
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GpsVerificationRecordRes> getGpsVerificationRecords(UUID actor, Long groupId, Integer slot,
+                                                                    LocalDate verificationDate) {
+        if (actor == null) {
+            throw new BusinessException(CommonCode.UNAUTHORIZED);
+        }
+        if (slot == null || (slot != 1 && slot != 2)) {
+            throw new BusinessException(CommonCode.BAD_REQUEST, "slot은 1 또는 2여야 합니다.");
+        }
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다."));
+        if (group.isDeleted()) {
+            throw new BusinessException(CommonCode.NOT_FOUND, "스터디 그룹을 찾을 수 없습니다.");
+        }
+        if (!studyUserRepository.existsByUserIdAndStudyId(actor, groupId)) {
+            throw new BusinessException(CommonCode.FORBIDDEN, "그룹 멤버만 위치 인증 기록을 조회할 수 있습니다.");
+        }
+        LocalDate date = verificationDate != null ? verificationDate : LocalDate.now();
+        List<UserVerificationRecord> records = userVerificationRecordRepository.findByGroupIdAndSlotAndVerificationDate(groupId, slot, date);
+        if (records.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> userIds = records.stream().map(UserVerificationRecord::getUserId).distinct().toList();
+        Map<UUID, String> nicknameMap = resolveNicknames(userIds);
+        List<GpsVerificationRecordRes> result = new ArrayList<>();
+        for (UserVerificationRecord record : records) {
+            OffsetDateTime submittedAt = gpsSubmissionRepository.findByRecordId(record.getRecordId())
+                    .map(GpsSubmission::getSubmittedAt)
+                    .orElse(record.getCreatedAt());
+            result.add(GpsVerificationRecordRes.builder()
+                    .userId(record.getUserId())
+                    .nickname(nicknameMap.get(record.getUserId()))
+                    .verificationDate(record.getVerificationDate())
+                    .submittedAt(submittedAt)
                     .build());
         }
         return result;

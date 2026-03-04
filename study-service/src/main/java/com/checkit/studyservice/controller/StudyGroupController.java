@@ -19,6 +19,7 @@ import com.checkit.studyservice.dto.VerificationReportRes;
 import com.checkit.studyservice.dto.VerificationRecordsRes;
 import com.checkit.studyservice.dto.VerificationPhotoSubmitRes;
 import com.checkit.studyservice.dto.PhotoVerificationRecordRes;
+import com.checkit.studyservice.dto.GpsVerificationRecordRes;
 import com.checkit.studyservice.dto.GpsVerificationSubmitReq;
 import com.checkit.studyservice.dto.GpsVerificationSubmitRes;
 import com.checkit.studyservice.dto.GpsLocationRes;
@@ -255,6 +256,19 @@ public class StudyGroupController {
     ) {
         UUID actor = parseActor(userIdHeader);
         List<PhotoVerificationRecordRes> res = studyGroupService.getPhotoVerificationRecords(actor, groupId, slot, verificationDate);
+        return ResponseEntity.ok(ApiResponse.success(res));
+    }
+
+    /** 해당 날짜·슬롯의 위치 인증 기록 목록 (위치탭 현황용). 그룹 멤버만 호출 가능. submittedAt 포함. */
+    @GetMapping("/{groupId}/verification/slots/{slot}/gps/records")
+    public ResponseEntity<ApiResponse<List<GpsVerificationRecordRes>>> getGpsVerificationRecords(
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable Long groupId,
+            @PathVariable Integer slot,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate verificationDate
+    ) {
+        UUID actor = parseActor(userIdHeader);
+        List<GpsVerificationRecordRes> res = studyGroupService.getGpsVerificationRecords(actor, groupId, slot, verificationDate);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
 
